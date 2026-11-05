@@ -1,0 +1,12 @@
+[general]
+name=SR Module for Landsat
+qgisMinimumVersion=3.34
+description=Experimental Landsat RGB and monochrome display enhancement using a general-purpose HAT model.
+version=0.6.0
+author=Vipul Chhikara
+email=vinod.chhikara@gmail.com
+about=Experimental RGB and monochrome display-only prototype; does not preserve Landsat scientific values or reconstruct verified ground features. New Delhi, India.
+category=Raster
+icon=icon.png
+experimental=True
+
