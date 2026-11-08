@@ -1,6 +1,10 @@
 <h1 align="center">SR Module for Landsat</h1>
 
 <p align="center">
+  <img src="docs/images/banner.png" alt="SR Module for Landsat banner: a blocky Landsat scene on the left and a sharper enlarged scene on the right" width="100%">
+</p>
+
+<p align="center">
   <img src="landsat_sr/icon.png" alt="SR Module for Landsat icon" width="96">
 </p>
 
