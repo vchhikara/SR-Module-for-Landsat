@@ -23,7 +23,7 @@ TITLE = 'SR Module for Landsat' if LANDSAT else 'RGB SR Module Mono'
 class RunTask(QgsTask):
     """Process bounded raster windows and write incrementally to a GeoTIFF."""
     def __init__(self, options, on_done):
-        super().__init__(TITLE, QgsTask.CanCancel)
+        super().__init__(TITLE, QgsTask.Flag.CanCancel)
         self.options, self.on_done = options, on_done
         self.error = ''
         self.debug_traceback = ''
@@ -196,7 +196,7 @@ class RunTask(QgsTask):
 
     def finished(self, success):
         if not success and self.debug_traceback:
-            QgsMessageLog.logMessage(self.debug_traceback, TITLE, Qgis.Critical)
+            QgsMessageLog.logMessage(self.debug_traceback, TITLE, Qgis.MessageLevel.Critical)
         self.on_done(success,self.error,self.options)
 
 
@@ -265,9 +265,9 @@ class SuperResolutionPlugin:
 
         output = file_row('Output GeoTIFF', save=True)
         add = QCheckBox('Add output to QGIS'); add.setChecked(True); layout.addWidget(add)
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(d.accept); buttons.rejected.connect(d.reject); layout.addWidget(buttons)
-        if d.exec_() != QDialog.Accepted: return
+        if d.exec() != QDialog.DialogCode.Accepted: return
         src = file_input.text().strip() or layers.currentData()
         dst = output.text().strip()
         if not src or not dst:
@@ -278,6 +278,12 @@ class SuperResolutionPlugin:
             QMessageBox.warning(self.iface.mainWindow(), TITLE, 'Output or its report already exists. Choose a new name.'); return
         if not dst.lower().endswith(('.tif', '.tiff')):
             QMessageBox.warning(self.iface.mainWindow(), TITLE, 'Output must end in .tif or .tiff.'); return
+        runtime = PLUGIN_DIR / 'runtime' / 'python.exe'
+        model_file = PLUGIN_DIR / 'weights' / 'real_hat_64.onnx'
+        if not runtime.is_file() or not model_file.is_file():
+            QMessageBox.warning(self.iface.mainWindow(), TITLE,
+                'The offline runtime or model file is missing from the plugin folder. '
+                'Install the complete plugin package from the project maintainer.'); return
         options = dict(source=src, output=dst, bands=[s.value() for s in spins], input_mode=mode.currentData(), auto_range=auto_range.isChecked(), minimum=minimum.value(), maximum=maximum.value(),
                        python=str(PLUGIN_DIR / 'runtime' / 'python.exe'), weights=str(PLUGIN_DIR / 'weights'), model=model.currentText(), device=device.currentText(), tile=64, add=add.isChecked())
         self.task = RunTask(options, self.finished)
