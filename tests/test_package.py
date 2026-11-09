@@ -28,3 +28,13 @@ def test_zip_is_reproducible(tmp_path):
     a = package_plugin.package_plugin(ROOT / 'landsat_sr', tmp_path / 'a.zip')
     b = package_plugin.package_plugin(ROOT / 'landsat_sr', tmp_path / 'b.zip')
     assert a.read_bytes() == b.read_bytes()
+
+
+def test_worker_process_keeps_its_pipes():
+    """A trailing comment must not swallow the Popen arguments."""
+    import ast
+    source = (ROOT / 'landsat_sr' / 'plugin.py').read_text(encoding='utf-8')
+    calls = [n for n in ast.walk(ast.parse(source))
+             if isinstance(n, ast.Call) and getattr(n.func, 'attr', '') == 'Popen']
+    assert len(calls) == 1
+    assert {'stdin', 'stdout', 'stderr', 'env'} <= {k.arg for k in calls[0].keywords}

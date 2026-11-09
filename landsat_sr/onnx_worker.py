@@ -54,7 +54,7 @@ def main():
     if not model_path.is_file(): raise FileNotFoundError('Bundled model missing: '+str(model_path))
     with model_path.open('rb') as handle:
         digest=hashlib.file_digest(handle,'sha256').hexdigest()
-    if digest!='3f47670dfeba712d68cd479f11cfe25866453c08b840269102b7a037eebc8908':
+    if digest!='3f47670dfeba712d68cd479f11cfe25866453c08b840269102b7a037eebc8908':  # pragma: allowlist secret
         raise ValueError('Bundled model failed its integrity check.')
     used='CPU'
     if device!='cpu':

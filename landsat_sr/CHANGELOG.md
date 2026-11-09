@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1
+
+- Mark the model worker command as a fixed list of plugin paths for the Bandit scan.
+- Mark the public model SHA-256 hash for the secrets scan.
+
 ## 0.6.0
 
 - First upload to plugins.qgis.org.
