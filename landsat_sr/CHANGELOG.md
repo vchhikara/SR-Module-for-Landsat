@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.2
+
+- Mark the plugin as experimental.
+
 ## 0.6.1
 
 - Mark the model worker command as a fixed list of plugin paths for the Bandit scan.
