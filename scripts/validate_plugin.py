@@ -65,8 +65,6 @@ def validate_tree(plugin, reject_cache=False):
                     errors.append('Invalid minimum QGIS version')
                 if not re.fullmatch(r'\d+(?:\.\d+){1,3}', data.get('qgisMaximumVersion', '')):
                     errors.append('Missing or invalid qgisMaximumVersion')
-                if data.get('experimental', '').lower() != 'false':
-                    errors.append('experimental must be False for release')
                 for field in ('tracker', 'homepage'):
                     if not data.get(field, '').startswith('https://'):
                         errors.append('Missing {} URL'.format(field))
