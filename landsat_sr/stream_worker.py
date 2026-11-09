@@ -10,7 +10,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from onnx_worker import create_session, predict
 
-MODEL_SHA = '3f47670dfeba712d68cd479f11cfe25866453c08b840269102b7a037eebc8908'
+MODEL_SHA = '3f47670dfeba712d68cd479f11cfe25866453c08b840269102b7a037eebc8908'  # pragma: allowlist secret
 
 def main():
     model = Path(sys.argv[1])

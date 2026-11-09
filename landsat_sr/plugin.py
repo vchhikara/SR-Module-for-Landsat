@@ -85,7 +85,7 @@ class RunTask(QgsTask):
                 cmd = [o['python'], str(PLUGIN_DIR/'stream_worker.py'),
                        str(Path(o['weights'])/'real_hat_64.onnx'), o['device']]
                 with log_file.open('w', encoding='utf-8') as log:
-                    self.process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=log, stderr=subprocess.STDOUT,
+                    self.process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=log, stderr=subprocess.STDOUT,  # nosec B603
                          text=True, encoding='utf-8', env=env,
                          creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
                     driver = gdal.GetDriverByName('GTiff')
