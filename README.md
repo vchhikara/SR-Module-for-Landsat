@@ -3,11 +3,6 @@
 <p align="center">
   <img src="docs/images/banner.png" alt="SR Module for Landsat banner: a blocky Landsat scene on the left and a sharper enlarged scene on the right" width="100%">
 </p>
-
-<p align="center">
-  <img src="landsat_sr/icon.png" alt="SR Module for Landsat icon" width="96">
-</p>
-
 <p align="center">
   <strong>Enlarge RGB and monochrome Landsat images four times for clearer display.</strong><br>
   Processing runs offline on your computer. No internet connection and no cloud service.
@@ -130,4 +125,5 @@ Open an issue at [github.com/vchhikara/SR-Module-for-Landsat/issues](https://git
 
 ## Author
 
-Vipul Chhikara, New Delhi, India.
+Vipul Chhikara, India
+vipul.chhikara@gmail.com
