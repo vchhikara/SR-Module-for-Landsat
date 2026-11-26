@@ -60,6 +60,6 @@ Update `RELEASE_TEST_STATUS.md` with the results.
 
 ## Decisions for the owner
 
-- Confirm the `GPL-3.0-or-later` lines in the source files.
-- Confirm that this repository no longer builds the `RGB SR Module Mono` variant.
+- Confirm the `GPL-3.0-or-later` lines in the source files. **Confirmed on 2026-11-27.**
+- Confirm that this repository no longer builds the `RGB SR Module Mono` variant. **Confirmed on 2026-11-27.**
 - Close [model provenance](MODEL_PROVENANCE.md) before you share a runtime or model.

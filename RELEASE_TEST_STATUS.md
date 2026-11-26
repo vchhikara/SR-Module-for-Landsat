@@ -26,7 +26,7 @@ SHA-256 matches `3f47670dfeba712d68cd479f11cfe25866453c08b840269102b7a037eebc890
 | 6. File behaviour | Passed, except a nearly full disk and a remote share, which were not checked. A real disk test needs a small volume, which needs administrator rights |
 | 7. Lifecycle | Passed in the QGIS application |
 | 8. Versions | Range narrowed to QGIS 4.2 |
-| 9. Offline builder | Passed with `--internal-test-build`, installed with "Install from ZIP" |
+| 9. Offline builder | Passed with `--internal-test-build`. The "Install from ZIP" page passed |
 | 10. CI | The first run failed. It is fixed. See [CI](#ci) |
 
 ### Task 1: test suite
@@ -210,6 +210,18 @@ After the last engine change (commit `6cf105c`), the ZIP was built again. It ins
 profile in the same way. The three task 7 cases then passed from that installed copy: no worker process
 or staging folder remained, and there was no new QGIS crash dump.
 
+**"Install from ZIP" page.** The last ZIP (SHA-256
+`199ec7d02745a1748f7069967f332254b720907c3e08975b31f01d80807b307d`) was then installed through the QGIS
+Plugin Manager in another new profile. A test script clicked the real browse button. A second script
+typed the ZIP path into the Windows file chooser and sent a click to its Open button. The test script
+then clicked the real install button and answered "Yes" to the QGIS security warning. The plugin became
+active, loaded from the new profile, and its runtime matched the trust record. The clicks were
+automated. Nobody did them by hand, and no folder browsing in the chooser was tested.
+
+**Cancel in the QGIS task list.** A test script opened the task list from the status bar and clicked the
+status column of the running task. The task ended 9.3 s after the click. No dialog, worker process, output
+file, staging file or map layer remained, and there was no new QGIS crash dump.
+
 ## GPU safety during tests
 
 `scripts/gpu_watchdog.ps1` reads `nvidia-smi` and stops the plugin's model process before the GPU gets too
@@ -242,8 +254,6 @@ QGIS 4.4.0 (Qt 6), GDAL 3.12.2, Python 3.14, ONNX Runtime on CPU, with a small t
 - Visual quality on desert, large open water, and sensors other than those listed in task 5.
 - A nearly full disk, a remote network share, a network failure and real antivirus products.
 - Long paths with `LongPathsEnabled` = 0.
-- Cancel with the button in the QGIS task list. The tests call the same task `cancel` method.
-- The file chooser of "Install from ZIP".
 - DirectML on other GPUs.
 - QGIS versions other than 4.2.0 on Windows.
 
@@ -251,5 +261,9 @@ QGIS 4.4.0 (Qt 6), GDAL 3.12.2, Python 3.14, ONNX Runtime on CPU, with a small t
 
 1. Run one full-size scene and inspect it.
 2. Close every item in `docs/release/MODEL_PROVENANCE.md` before you distribute a runtime or model.
-3. Confirm the `GPL-3.0-or-later` lines in the source files.
-4. Confirm that this repository no longer builds the `RGB SR Module Mono` variant.
+
+## Owner decisions (2026-11-27)
+
+- The `GPL-3.0-or-later` lines in the source files are confirmed.
+- It is confirmed that this repository no longer builds the `RGB SR Module Mono` variant. The only package
+  scripts build the `landsat_sr` plugin. The single-band input mode of that plugin stays.
