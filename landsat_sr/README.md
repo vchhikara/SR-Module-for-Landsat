@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img alt="QGIS" src="https://img.shields.io/badge/QGIS-3.34%20to%204.99-589632?logo=qgis&logoColor=white">
+  <img alt="QGIS" src="https://img.shields.io/badge/QGIS-4.2-589632?logo=qgis&logoColor=white">
   <img alt="Python" src="https://img.shields.io/badge/Python-ONNX%20Runtime-3776AB?logo=python&logoColor=white">
   <img alt="Platform" src="https://img.shields.io/badge/runtime-64--bit%20Windows-0078D4">
   <a href="LICENSE"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue"></a>
@@ -46,7 +46,7 @@ What you can do:
 
 ## Requirements
 
-- QGIS 3.34 or later. The metadata allows QGIS up to 4.99.
+- QGIS 4.2. It was tested on Windows with QGIS 4.2.0. The plugin metadata blocks other versions.
 - 64-bit Windows for the bundled offline runtime.
 - A prepared unsigned 8-bit or 16-bit raster in a local file. Supported formats are GeoTIFF, ERDAS IMAGINE, ENVI, PNG, JPEG, JPEG 2000, ASCII Grid and BMP. VRT files, web services and database layers are refused. Export them to GeoTIFF first.
 - A runtime with 64-bit Python 3.11 or later. All its code must be inside its own folder.
@@ -88,7 +88,7 @@ With **Add output to QGIS** selected, the plugin adds the result to the project 
 - Rasters with geolocation arrays or palette (class) bands are refused. So is output that GeoTIFF cannot store without extra files.
 - The local-file rule blocks the common ways to reach the network through an input. It is not a network sandbox.
 - Large rasters take time and disk space.
-- This version has not yet run with the real model or on Windows. See the release status file in the repository.
+- This version ran with the real model on one Windows computer. A full-size Landsat scene was not run. See the release status file in the repository.
 
 ---
 

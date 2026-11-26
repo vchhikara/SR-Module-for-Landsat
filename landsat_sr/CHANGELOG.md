@@ -2,6 +2,11 @@
 
 ## 0.7.0
 
+Supported versions
+
+- The plugin now supports QGIS 4.2 only. It was tested on Windows with QGIS 4.2.0. Older and newer
+  versions were not tested on Windows.
+
 Privacy and input
 
 - The report records only a fixed list of fields, with file names and no folder paths. Logs and messages remove credentials.
