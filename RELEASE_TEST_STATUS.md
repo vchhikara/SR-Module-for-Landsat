@@ -206,13 +206,18 @@ profile. A script called it, so the file chooser was not used. The plugin became
 from the new profile. The bundled trust record matched the installed runtime. All five smoke cases
 passed on `cpu`, `auto` and `gpu` from this installed copy.
 
+After the last engine change (commit `6cf105c`), the ZIP was built again. It installed into a fresh
+profile in the same way. The three task 7 cases then passed from that installed copy: no worker process
+or staging folder remained, and there was no new QGIS crash dump.
+
 ## GPU safety during tests
 
 `scripts/gpu_watchdog.ps1` reads `nvidia-smi` and stops the plugin's model process before the GPU gets too
 hot. It changes no GPU setting. A trip test with a 1 C limit stopped only the matching test processes. An
 unrelated Python process stayed alive. It was not tested with a really hot GPU. In a monitored part of
 the later tests (195 readings), the peak was 70 C, with no hardware slowdown and no trip. Earlier runs
-were not monitored. The plugin itself does not start the watchdog.
+were not monitored. During the final repeat of task 7, the peak was 58 C, with no trip. The plugin itself
+does not start the watchdog.
 
 ## CI
 
