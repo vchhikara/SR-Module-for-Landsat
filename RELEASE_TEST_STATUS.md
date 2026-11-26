@@ -216,7 +216,7 @@ or staging folder remained, and there was no new QGIS crash dump.
 hot. It changes no GPU setting. A trip test with a 1 C limit stopped only the matching test processes. An
 unrelated Python process stayed alive. It was not tested with a really hot GPU. In a monitored part of
 the later tests (195 readings), the peak was 70 C, with no hardware slowdown and no trip. Earlier runs
-were not monitored. During the final repeat of task 7, the peak was 58 C, with no trip. The plugin itself
+were not monitored. During the two repeats of task 7, the peak was 58 C, with no trip. The plugin itself
 does not start the watchdog.
 
 ## CI
