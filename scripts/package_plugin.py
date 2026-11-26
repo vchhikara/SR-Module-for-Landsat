@@ -9,7 +9,7 @@ from validate_plugin import validate_tree, validate_zip
 
 PLUGIN_FOLDER = 'landsat_sr'
 INCLUDE = (
-    '__init__.py', 'plugin.py', 'stream_worker.py', 'onnx_worker.py',
+    '__init__.py', 'plugin.py', 'runtime_config.py', 'stream_worker.py', 'onnx_worker.py',
     'metadata.txt', 'LICENSE', 'README.md', 'CHANGELOG.md', 'icon.png',
     'weights/MODEL_SHA256.txt',
 )

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3
+
+- Configure a separately supplied Windows inference runtime and model from the Raster menu.
+- Check the selected model's SHA-256 before storing its location; continue to support complete offline plugin packages.
+- Exercise real RGB and monochrome CPU inference with QGIS 3.44.12 and 4.2.3 on Windows.
+
 ## 0.6.2
 
 - Mark the plugin as experimental.

@@ -15,10 +15,13 @@ from qgis.PyQt.QtWidgets import (QAction, QCheckBox, QComboBox, QDialog,
     QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit,
     QMessageBox, QPushButton, QSpinBox, QDoubleSpinBox, QVBoxLayout, QWidget)
 from qgis.core import QgsApplication, QgsProject, QgsRasterLayer, QgsTask, QgsMessageLog, Qgis
+from .runtime_config import check_paths, resolve_paths
 
 PLUGIN_DIR = Path(__file__).resolve().parent
 LANDSAT = __package__.split('.')[0] == 'landsat_sr'
 TITLE = 'SR Module for Landsat' if LANDSAT else 'RGB SR Module Mono'
+RUNTIME_KEY = '/LandsatSR/runtime_python'
+MODEL_KEY = '/LandsatSR/model_file'
 
 class RunTask(QgsTask):
     """Process bounded raster windows and write incrementally to a GeoTIFF."""
@@ -210,16 +213,60 @@ class SuperResolutionPlugin:
         self.action.triggered.connect(self.show_dialog)
         self.iface.addPluginToRasterMenu(TITLE, self.action)
         self.iface.addToolBarIcon(self.action)
+        self.setup_action = QAction('Configure SR runtime and model…', self.iface.mainWindow())
+        self.setup_action.triggered.connect(self.configure_runtime)
+        self.iface.addPluginToRasterMenu(TITLE, self.setup_action)
     def unload(self):
         self.iface.removePluginRasterMenu(TITLE, self.action)
         self.iface.removeToolBarIcon(self.action)
+        self.iface.removePluginRasterMenu(TITLE, self.setup_action)
+
+    def runtime_paths(self):
+        settings = QSettings()
+        return resolve_paths(PLUGIN_DIR, settings.value(RUNTIME_KEY, '', type=str),
+                             settings.value(MODEL_KEY, '', type=str))
+
+    def configure_runtime(self):
+        dialog = QDialog(self.iface.mainWindow())
+        dialog.setWindowTitle('Configure SR runtime and model')
+        layout = QVBoxLayout(dialog)
+        label = QLabel('The QGIS repository package does not include the inference runtime or model. '
+                       'Select them from a trusted complete SR runtime package. '
+                       'The model is checked against its expected SHA-256 before use.')
+        label.setWordWrap(True)
+        layout.addWidget(label)
+        form = QFormLayout(); layout.addLayout(form)
+        python_path, model_path = self.runtime_paths()
+        python_edit, model_edit = QLineEdit(str(python_path)), QLineEdit(str(model_path))
+        def row(edit, title, file_filter):
+            box = QWidget(); line = QHBoxLayout(box); line.setContentsMargins(0, 0, 0, 0)
+            button = QPushButton('Browse…'); line.addWidget(edit); line.addWidget(button)
+            def browse():
+                filename, _ = QFileDialog.getOpenFileName(dialog, title, edit.text(), file_filter)
+                if filename: edit.setText(filename)
+            button.clicked.connect(browse)
+            return box
+        form.addRow('Runtime Python', row(python_edit, 'Select runtime Python', 'Python executable (python.exe);;All files (*)'))
+        form.addRow('Model', row(model_edit, 'Select model file', 'ONNX model (*.onnx);;All files (*)'))
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept); buttons.rejected.connect(dialog.reject); layout.addWidget(buttons)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return False
+        python_path, model_path = python_edit.text().strip(), model_edit.text().strip()
+        error = check_paths(python_path, model_path)
+        if error:
+            QMessageBox.warning(self.iface.mainWindow(), TITLE, error)
+            return False
+        settings = QSettings()
+        settings.setValue(RUNTIME_KEY, python_path); settings.setValue(MODEL_KEY, model_path)
+        return True
 
     def show_dialog(self):
         d = QDialog(self.iface.mainWindow())
         d.setWindowTitle(TITLE)
         layout = QVBoxLayout(d)
         notice = QLabel('Experimental visual enhancement. Generated detail is estimated, not verified ground truth.' +
-                        (' Landsat mode outputs only an 8-bit RGB display image; it is not multispectral SR.' if LANDSAT else ''))
+                        (' Output is for visual display; it is not multispectral SR.' if LANDSAT else ''))
         notice.setWordWrap(True)
         layout.addWidget(notice)
         form = QFormLayout()
@@ -278,14 +325,16 @@ class SuperResolutionPlugin:
             QMessageBox.warning(self.iface.mainWindow(), TITLE, 'Output or its report already exists. Choose a new name.'); return
         if not dst.lower().endswith(('.tif', '.tiff')):
             QMessageBox.warning(self.iface.mainWindow(), TITLE, 'Output must end in .tif or .tiff.'); return
-        runtime = PLUGIN_DIR / 'runtime' / 'python.exe'
-        model_file = PLUGIN_DIR / 'weights' / 'real_hat_64.onnx'
-        if not runtime.is_file() or not model_file.is_file():
-            QMessageBox.warning(self.iface.mainWindow(), TITLE,
-                'The offline runtime or model file is missing from the plugin folder. '
-                'Install the complete plugin package from the project maintainer.'); return
+        runtime, model_file = self.runtime_paths()
+        error = check_paths(str(runtime), str(model_file))
+        if error:
+            QMessageBox.information(self.iface.mainWindow(), TITLE,
+                'SR setup is needed before processing. ' + error +
+                '\n\nChoose the runtime and model from the complete package in the next window.')
+            if not self.configure_runtime(): return
+            runtime, model_file = self.runtime_paths()
         options = dict(source=src, output=dst, bands=[s.value() for s in spins], input_mode=mode.currentData(), auto_range=auto_range.isChecked(), minimum=minimum.value(), maximum=maximum.value(),
-                       python=str(PLUGIN_DIR / 'runtime' / 'python.exe'), weights=str(PLUGIN_DIR / 'weights'), model=model.currentText(), device=device.currentText(), tile=64, add=add.isChecked())
+                       python=str(runtime), weights=str(model_file.parent), model=model.currentText(), device=device.currentText(), tile=64, add=add.isChecked())
         self.task = RunTask(options, self.finished)
         QgsApplication.taskManager().addTask(self.task)
         self.iface.messageBar().pushInfo(TITLE, 'Processing started. See QGIS Tasks for progress and cancellation.')

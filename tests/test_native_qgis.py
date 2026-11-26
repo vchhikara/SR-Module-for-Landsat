@@ -41,10 +41,10 @@ def test_scoped_enums_exist():
 def test_init_gui_and_unload(plugin):
     instance, iface = plugin
     instance.initGui()
-    iface.addPluginToRasterMenu.assert_called_once()
+    assert iface.addPluginToRasterMenu.call_count == 2
     iface.addToolBarIcon.assert_called_once()
     instance.unload()
-    iface.removePluginRasterMenu.assert_called_once()
+    assert iface.removePluginRasterMenu.call_count == 2
     iface.removeToolBarIcon.assert_called_once()
 
 
@@ -75,9 +75,10 @@ def test_missing_runtime_is_reported(plugin, tmp_path):
 
     with mock.patch.object(QDialog, 'exec', return_value=QDialog.DialogCode.Accepted), \
          mock.patch.object(QLineEdit, 'text', fake_text), \
-         mock.patch('landsat_sr.plugin.QMessageBox.warning') as warning:
+         mock.patch('landsat_sr.plugin.QMessageBox.information') as warning, \
+         mock.patch.object(instance, 'configure_runtime', return_value=False):
         instance.show_dialog()
     assert warning.called
-    assert 'missing' in warning.call_args[0][2].lower()
+    assert 'setup' in warning.call_args[0][2].lower()
     assert instance.task is None
     instance.unload()

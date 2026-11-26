@@ -51,15 +51,15 @@ What you can do:
 - A prepared unsigned 8-bit or 16-bit raster. Align and prepare the bands first.
 - Free disk space for the output. A 4× enlargement has 16 times as many pixels.
 
-The complete plugin package holds Python, ONNX Runtime, DirectML, and the model file. The source package on the QGIS plugin site and in this repository holds none of them. Without these files, the plugin shows a message and does not process.
+The QGIS repository package does not include the inference runtime or model. Obtain a trusted complete Windows x64 runtime package from the maintainer; it contains Python, ONNX Runtime, DirectML and the model. Configure their locations as described below. A separate complete offline plugin package can include them already.
 
 ---
 
 ## Getting started
 
-1. Get the complete plugin package from the project maintainer.
-2. In QGIS, open **Plugins → Manage and Install Plugins → Install from ZIP**.
-3. Select the ZIP and install it.
+1. Install the plugin from the QGIS Plugin Manager, or get the complete offline plugin package from the project maintainer.
+2. If using a ZIP, open **Plugins → Manage and Install Plugins → Install from ZIP**.
+3. Select the ZIP and install it. If the package does not contain the runtime and model, extract the trusted runtime package to a stable location, then open **Raster → SR Module for Landsat → Configure SR runtime and model…**. Choose `runtime/python.exe` and `weights/real_hat_64.onnx`. The model is checked against its expected SHA-256. This setup does not install packages into QGIS Python.
 
 ---
 
@@ -83,7 +83,7 @@ With **Add output to QGIS** selected, the plugin adds the result to the project 
 - The plugin does not read Landsat product metadata. It does not apply scale and offset values. It does not mask QA cloud or shadow flags.
 - Predictions near NoData and mask edges can show errors.
 - Large rasters take time and disk space.
-- Automated load and unload tests ran on QGIS 4.2.3 on Linux. The checks did not run QGIS 3.x. They did not run the processing step, because the offline runtime targets Windows.
+- Real-model CPU inference was tested with small RGB and monochrome rasters on Windows, using QGIS 3.44.12 and 4.2.3. Additional data, hardware and platforms need testing.
 
 ---
 
@@ -91,7 +91,7 @@ With **Add output to QGIS** selected, the plugin adds the result to the project 
 
 | Message | What to do |
 |---|---|
-| The offline runtime or model file is missing | Install the complete plugin package from the project maintainer. |
+| SR setup is needed | Obtain the runtime package from the maintainer and select `runtime/python.exe` and `weights/real_hat_64.onnx` in **Configure SR runtime and model…**. |
 | Output or its report already exists | Choose a new output file name. |
 | Valid input pixels are outside the selected display range | Widen the display minimum and maximum, or use the full bit-depth range. |
 | Select 8-bit or unsigned 16-bit bands of the same data type | Convert the bands to one supported type. |
