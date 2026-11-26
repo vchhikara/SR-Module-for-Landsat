@@ -131,7 +131,10 @@ def test_a_failure_shows_a_redacted_message(qgs, plugin, tmp_path):
     def explode(task, log_path):
         raise KeyError('token=hunter2')
     logged = []
-    QgsApplication.messageLog().messageReceived.connect(lambda message, *args: logged.append(message))
+    log = QgsApplication.messageLog()
+    # QGIS 4.2.0 on Windows emits only the newer signal. QGIS 3.34 may have only the older one.
+    signal = getattr(log, 'messageReceivedWithFormat', None) or log.messageReceived
+    signal.connect(lambda message, *args: logged.append(message))
     with mock.patch.object(module.RunTask, '_predictor', explode), \
             mock.patch.object(QMessageBox, 'warning') as warning:
         instance.start_task(options(tmp_path))

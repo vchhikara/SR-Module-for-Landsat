@@ -472,6 +472,24 @@ def test_an_unlistable_input_folder_gives_a_clear_message(tmp_path):
         folder.chmod(0o755)
 
 
+def test_an_unwritable_output_folder_fails_at_once_with_a_message(tmp_path, monkeypatch):
+    """On Windows, tempfile.mkdtemp retries about 2**31 times when the folder ACL denies new folders."""
+    source = small(tmp_path)
+    real = os.mkdir
+    attempts = []
+
+    def deny(path, *args, **kwargs):
+        if os.path.basename(path).startswith('.qgis_sr_'):
+            attempts.append(path)
+            assert len(attempts) <= 20, 'the staging folder is retried without a limit'
+            raise PermissionError(13, 'Access is denied', str(path))
+        return real(path, *args, **kwargs)
+    monkeypatch.setattr(os, 'mkdir', deny)
+    with pytest.raises(SRError, match='output folder'):
+        run(tmp_path, source)
+    assert_nothing_published(tmp_path)
+
+
 def test_gdal_configuration_is_restored(tmp_path):
     gdal.SetThreadLocalConfigOption('GDAL_PAM_ENABLED', None)
     run(tmp_path, small(tmp_path))

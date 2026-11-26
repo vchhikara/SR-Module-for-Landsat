@@ -9,7 +9,6 @@ import numpy as np
 import pytest
 
 from conftest import make_model, nearest4, require_isolated_runtime
-from landsat_sr import engine
 from landsat_sr.constants import Cancelled, SRError
 from landsat_sr.worker_client import Worker
 
@@ -79,6 +78,7 @@ def test_nan_model_is_refused_inside_the_worker(tmp_path):
 
 def test_full_pipeline_with_the_real_worker(tmp_path, model):
     gdal = pytest.importorskip('osgeo.gdal')
+    from landsat_sr import engine  # needs GDAL, which some CI jobs do not have
     data = np.random.default_rng(2).integers(0, 256, (3, 150, 210), np.uint8)
     source = str(tmp_path / 'in.tif')
     ds = gdal.GetDriverByName('GTiff').Create(source, 210, 150, 3, gdal.GDT_Byte)

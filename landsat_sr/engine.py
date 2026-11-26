@@ -2,9 +2,10 @@
 """The processing pipeline. It does not import QGIS."""
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
+import secrets
 import shutil
-import tempfile
 
 import numpy as np
 
@@ -101,6 +102,20 @@ def enlarge(spec, low, high, predictor, output, progress, canceled):
     return predicted, invalid
 
 
+def _make_staging(parent):
+    """A new private folder next to the output.
+
+    Not tempfile.mkdtemp: on Windows it retries about 2**31 times when the folder ACL denies new folders.
+    """
+    path = Path(os.path.abspath(parent)) / (_STAGING_PREFIX + secrets.token_hex(8))  # the worker has another cwd
+    try:
+        os.mkdir(path, 0o700)
+    except OSError as exc:
+        raise SRError('Cannot write to the output folder: {}. Choose another folder.'.format(
+            exc.strerror or type(exc).__name__)) from exc
+    return path
+
+
 def run_job(options, predictor_factory, progress=lambda value: None, canceled=lambda: False):
     """Run one enlargement and publish the GeoTIFF and its report. Returns the report.
 
@@ -129,7 +144,7 @@ def run_job(options, predictor_factory, progress=lambda value: None, canceled=la
         'SR_SOURCE_NAME': source_name, 'SR_DISPLAY_RANGE': '{:g} {:g}'.format(low, high),
         'SR_CREATED_UTC': created})
 
-    staging_dir = Path(tempfile.mkdtemp(prefix=_STAGING_PREFIX, dir=str(dest.parent)))
+    staging_dir = _make_staging(dest.parent)
     output = None
     try:
         staging = staging_dir / 'result.tif'
