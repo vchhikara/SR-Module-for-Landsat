@@ -13,6 +13,8 @@ Output
 - Partial alpha stays partial. Ground control points and RPCs are scaled to the new pixel grid.
 - The TIFF carries its own warning and provenance tags.
 - The finished GeoTIFF is flushed, closed, read back and compared before publication.
+- On Windows, the published files get the permissions of the output folder.
+- An output folder without write permission gives a message. On Windows the task could run without end.
 - Publication does not replace existing files. The report is published first and the GeoTIFF last.
 - One tile grid covers the whole image, so work splitting no longer changes the result.
 - Tiles without any valid pixel skip inference.

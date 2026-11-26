@@ -176,7 +176,9 @@ def run_job(options, predictor_factory, progress=lambda value: None, canceled=la
         report_staging.write_text(json.dumps(report, indent=2), encoding='utf-8')
         if canceled():  # last chance: publication below is the commit point
             raise Cancelled()
-        publish.publish_pair(staging, report_staging, dest)
+        private = publish.publish_pair(staging, report_staging, dest)
+        if private:  # for the caller only: the report file is already published
+            report['private_files'] = private
         return report
     finally:
         if output is not None:

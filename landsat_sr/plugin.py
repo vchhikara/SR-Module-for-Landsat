@@ -316,6 +316,10 @@ class SuperResolutionPlugin:
         if not success:
             self._warn(task.error or 'Processing failed or was cancelled.')
             return
+        if task.report.get('private_files'):
+            self.iface.messageBar().pushWarning(
+                TITLE, 'Saved, but other users may not be able to read these files, because their folder '
+                'permissions could not be applied: ' + ', '.join(task.report['private_files']))
         if task.options['add']:
             self.iface.addRasterLayer(task.options['output'], Path(task.options['output']).stem)
         self.iface.messageBar().pushSuccess(

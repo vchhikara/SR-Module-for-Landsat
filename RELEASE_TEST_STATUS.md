@@ -16,7 +16,7 @@ Python 3.12.13, NumPy 2.4.6. The test tools were in a separate virtual environme
 `apps\Python312\python.exe` with `--system-site-packages` and with the user site disabled. It held
 ONNX Runtime 1.32.0 (CPU only) and ONNX 1.23.2. The QGIS installation was not changed.
 
-Final result of `pytest -rs`: **186 passed, 11 skipped**. This includes one new test. The worker tests ran. These tests skipped:
+Final result of `pytest -rs`: **189 passed, 11 skipped**. This includes four new tests. The worker tests ran. These tests skipped:
 
 | Count | Test location | Reason |
 |---|---|---|
@@ -50,10 +50,9 @@ on `71096ac` **failed**.
   fake-worker tests for deadlines, cancel, broken replies, redaction and the child environment ran.
   These jobs do not test the real worker with ONNX Runtime.
 
-The import now is inside the one test that needs GDAL. A local environment (Windows, Python 3.12
-from python.org, no GDAL) showed the same collection error before the change. After the change it
-gave 114 passed, 11 skipped. Ruff, Bandit, `package_plugin.py` and `validate_plugin.py` passed there.
-**CI has not run with these changes.**
+The import now is inside the one test that needs GDAL.
+[Run 45888243800](https://github.com/vchhikara/SR-Module-for-Landsat/actions/runs/45888243800) on
+`530212f` **passed** in all five jobs.
 
 ## File behaviour (task 6, partial)
 
@@ -77,17 +76,16 @@ writable, and `mkdtemp` was still retrying after 20000 calls. Its limit is 21474
 now makes one attempt and shows "Cannot write to the output folder". The new test failed before the
 fix. This case ran in the engine only, not in the QGIS application.
 
-**Open defect: output permissions.** This defect is in `71096ac`. It was seen in a normal run with
-the original `mkdtemp` code, and the fix above does not change it. A file made in the work folder
-inherited the folder permissions. The published GeoTIFF and report did not. Their access list had
-only SYSTEM, Administrators and OWNER RIGHTS. The cause is the staging folder mode. A separate
-probe with the Python 3.12.13 of this QGIS moved a file out of a new folder. With mode `0o700`, the
-file kept the restricted access list. With mode `0o777`, it had the inherited permissions. Other
-Python builds were not tested. Other users of a shared folder may be unable to read the output.
-The fix above keeps mode `0o700`. The staging folder also holds the worker log and is the Python
-cache prefix of the worker. `-B` stops cache writes, but not cache reads. Thus do not loosen the
-staging folder without a security review. One option is to restore inheritance on the two published
-files only.
+**Fixed defect: output permissions.** In `71096ac`, the published GeoTIFF and report did not inherit
+the folder permissions. Their access list had only SYSTEM, Administrators and OWNER RIGHTS, so other
+users of a shared folder could be unable to read them. The cause was the private staging folder:
+with the Python 3.12.13 of this QGIS, a file made in a folder of mode `0o700` keeps a restricted
+access list when it is renamed. The staging folder stays private, because it holds the worker log and
+is the Python cache prefix of the worker. After publication, the plugin now resets only the two
+published files, so that they inherit from the output folder. If that step fails, the output is kept
+and the plugin shows a warning with the file names. `tests/test_publish.py` covers this, and it
+failed before the fix. In the cases above, including the 356-character path and the UNC path, the
+GeoTIFF then had only inherited entries.
 
 The normal run and the cancel run also passed with the output folder on the local administrative
 share `\\localhost\C$` (input on the local disk). This checks a UNC path on the same computer. It

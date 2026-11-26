@@ -56,6 +56,42 @@ def _copy_exclusive(source, target):
     os.unlink(source)
 
 
+def inherit_permissions(path):
+    """Windows only: give a moved file the permissions that its folder gives to a new file.
+
+    The staging folder is private, and a rename keeps the access list of the file. This does
+    the same as "icacls /reset": no entries of its own, inheritance on.
+    """
+    import ctypes
+    from ctypes import wintypes
+    advapi = ctypes.WinDLL('advapi32', use_last_error=True)
+    advapi.InitializeAcl.argtypes = [ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD]
+    advapi.InitializeAcl.restype = wintypes.BOOL
+    advapi.SetNamedSecurityInfoW.argtypes = [wintypes.LPWSTR, ctypes.c_int, wintypes.DWORD] + 4 * [ctypes.c_void_p]
+    advapi.SetNamedSecurityInfoW.restype = wintypes.DWORD
+    # An empty list. Never pass no list at all: that would give everyone full access.
+    empty = ctypes.create_string_buffer(8)
+    if not advapi.InitializeAcl(empty, len(empty), 2):  # ACL_REVISION
+        raise ctypes.WinError(ctypes.get_last_error())
+    file_object, dacl, unprotected = 1, 0x00000004, 0x20000000
+    code = advapi.SetNamedSecurityInfoW(os.path.abspath(path), file_object, dacl | unprotected,
+                                        None, None, empty, None)
+    if code:
+        raise ctypes.WinError(code)
+
+
+def _restore_permissions(paths):
+    """The names of the files that kept the private permissions."""
+    failed = []
+    if os.name == 'nt':
+        for path in paths:
+            try:
+                inherit_permissions(path)
+            except OSError:  # the output is complete, so report this and do not fail the run
+                failed.append(path.name)
+    return failed
+
+
 def move_no_clobber(source, target):
     """Move source to target. Fail with FileExistsError if target exists."""
     if os.name == 'nt':
@@ -75,6 +111,7 @@ def move_no_clobber(source, target):
 
 
 def publish_pair(staging, report_staging, dest):
+    """Publish both files. Return the names of files whose permissions could not be restored."""
     dest = Path(dest)
     report = report_path(dest)
     check_free(dest)
@@ -96,3 +133,4 @@ def publish_pair(staging, report_staging, dest):
         if isinstance(exc, FileExistsError):
             raise SRError('The output file appeared during processing. No file was replaced.') from None
         raise
+    return _restore_permissions([report, dest])
