@@ -26,7 +26,7 @@ SHA-256 matches `3f47670dfeba712d68cd479f11cfe25866453c08b840269102b7a037eebc890
 | 6. File behaviour | Passed, except a nearly full disk and a remote share, which were not checked |
 | 7. Lifecycle | Passed in the QGIS application |
 | 8. Versions | Range narrowed to QGIS 4.2 |
-| 9. Offline builder | Passed with `--internal-test-build` |
+| 9. Offline builder | Passed with `--internal-test-build`, installed with "Install from ZIP" |
 | 10. CI | The first run failed. It is fixed. See [CI](#ci) |
 
 ### Task 1: test suite
@@ -50,9 +50,12 @@ from the user site, which `-I` hides. The GPU error test used the CPU-only ONNX 
 `sys.path` of the runtime `python.exe -I` had only `runtime\python312.zip`, `runtime` and
 `runtime\Lib\site-packages`. `smoke_qgis_setup.py` passed through the real configure dialog.
 
-`smoke_windows_processing.py` passed all four cases on each device. `auto` and `gpu` used DirectML.
-The mean block error was 1.08 to 2.50 on each device, below the limit of 15. These cases use 8-bit
-data.
+`smoke_windows_processing.py` passed all five cases on each device. `auto` and `gpu` used DirectML.
+For the four 8-bit cases, the mean block error was 1.08 to 2.50, below the limit of 15.
+
+The first four cases did not find the 16-bit defect in task 5. A fifth case, `rgb_uint16`, was added.
+It uses 16-bit values in a narrow range, with a limit of 240 (15 times its value scale). The current
+code gave 40.01 on each device. With the engine of `a42e56e`, the case failed on `gpu` with 527.69.
 
 | Device | Start and load | One request (4 tiles), median | Per tile |
 |---|---|---|---|
@@ -150,16 +153,20 @@ Only QGIS 4.2.0 was tested on Windows. At the owner's decision, `metadata.txt` n
 ### Task 9: offline builder
 
 `package_offline_windows.py --internal-test-build` made a 128 MB ZIP with `DO_NOT_DISTRIBUTE.txt`.
-The ZIP was extracted into the plugin folder of a new profile. "Install from ZIP" in the QGIS user
-interface was not used. The bundled trust record matched the installed runtime. The processing smoke
-script passed on all three devices from the installed copy.
+The QGIS installer function behind "Install from ZIP" (`installFromZipFile`) installed it into a new
+profile. A script called it, so the file chooser was not used. The plugin became active and loaded
+from the new profile. The bundled trust record matched the installed runtime. All five smoke cases
+passed on `cpu`, `auto` and `gpu` from this installed copy.
 
 ## CI
 
 [Run 45880597343](https://github.com/vchhikara/SR-Module-for-Landsat/actions/runs/45880597343) on
 `71096ac` failed, because `tests/test_worker.py` needed GDAL at test collection. After the fix,
 [run 45888243800](https://github.com/vchhikara/SR-Module-for-Landsat/actions/runs/45888243800) on
-`530212f` passed in all five jobs. See the Actions page for later commits.
+`530212f` passed in all five jobs.
+[Run 45895600461](https://github.com/vchhikara/SR-Module-for-Landsat/actions/runs/45895600461), after
+the change to QGIS 4.2, also passed: `lint-and-package` 123 passed, 5 skipped; `windows` 117 passed,
+11 skipped; each `qgis` job 188 passed, 11 skipped. See the Actions page for later commits.
 
 The `qgis` jobs run on Linux containers without ONNX Runtime. They run the fake-worker tests, but not
 the real worker with ONNX Runtime. They include QGIS 3.34, which the plugin no longer declares.
@@ -175,7 +182,7 @@ QGIS 4.4.0 (Qt 6), GDAL 3.12.2, Python 3.14, ONNX Runtime on CPU, with a small t
 - A nearly full disk, a remote network share, a network failure, junctions and antivirus locks.
 - Long paths with `LongPathsEnabled` = 0.
 - Cancel with the button in the QGIS task list. The tests call the same task `cancel` method.
-- "Install from ZIP" in the QGIS user interface.
+- The file chooser of "Install from ZIP".
 - DirectML on other GPUs.
 - QGIS versions other than 4.2.0 on Windows.
 

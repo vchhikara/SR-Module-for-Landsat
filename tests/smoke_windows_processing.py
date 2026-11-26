@@ -28,13 +28,16 @@ app = QgsApplication([], False)
 app.initQgis()
 with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
-    # (name, colour bands, alpha value or None, size). The last two sizes need several tiles.
-    for name, channels, alpha, size in [('rgb', 3, None, 8), ('mono', 1, None, 8),
-                                        ('rgba_large', 3, 127, 210), ('mono_large', 1, None, 150)]:
+    # (name, colour bands, alpha value or None, size, value scale). The large sizes need several tiles.
+    # A scale above 1 gives UInt16 data in a narrow part of 0..65535, like Landsat land values.
+    for name, channels, alpha, size, scale in [('rgb', 3, None, 8, 1), ('mono', 1, None, 8, 1),
+                                               ('rgba_large', 3, 127, 210, 1), ('mono_large', 1, None, 150, 1),
+                                               ('rgb_uint16', 3, None, 210, 16)]:
         source = root / (name + '_input.tif')
         destination = root / (name + '_output.tif')
         bands = channels + (alpha is not None)
-        ds = gdal.GetDriverByName('GTiff').Create(str(source), size, size, bands, gdal.GDT_Byte,
+        base, datatype = (7000, gdal.GDT_UInt16) if scale > 1 else (0, gdal.GDT_Byte)
+        ds = gdal.GetDriverByName('GTiff').Create(str(source), size, size, bands, datatype,
                                                   options=['PHOTOMETRIC=RGB', 'ALPHA=YES'] if alpha else [])
         ds.SetGeoTransform((10, 30, 2, 20, 1, -30))
         crs = osr.SpatialReference()
@@ -42,7 +45,7 @@ with tempfile.TemporaryDirectory() as directory:
         ds.SetProjection(crs.ExportToWkt())
         ramp = (np.add.outer(np.arange(size), np.arange(size)) % 180 + 40).astype(np.uint8)
         for i in range(channels):
-            ds.GetRasterBand(i + 1).WriteArray(ramp + i)
+            ds.GetRasterBand(i + 1).WriteArray(base + (ramp + i).astype(np.uint16) * scale)
         if alpha:
             ds.GetRasterBand(bands).Fill(alpha)
         ds = None
@@ -60,8 +63,8 @@ with tempfile.TemporaryDirectory() as directory:
         assert ds.GetProjection() and 'DERIVED' in ds.GetMetadataItem('SR_NOTICE')
         # A real model keeps the coarse content: each 4x4 block mean stays near its input pixel.
         small = out[0].reshape(size, 4, size, 4).mean(axis=(1, 3))
-        error = float(np.abs(small - ramp).mean())
-        assert error < 15, 'mean block error {:.2f}'.format(error)
+        error = float(np.abs(small - (base + ramp.astype(np.float64) * scale)).mean())
+        assert error < 15 * scale, 'mean block error {:.2f}'.format(error)
         if alpha:
             assert (out[-1] == alpha).all()
         report = json.loads(Path(str(destination) + '.json').read_text(encoding='utf-8'))
