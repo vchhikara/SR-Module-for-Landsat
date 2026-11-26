@@ -1,15 +1,28 @@
-# SR Module for Landsat 0.6.3 — local test build
+# SR Module for Landsat 0.7.0 — release status
 
-The repository-format package contains the plugin source and a configuration dialog. Its runtime and model must still be obtained separately; it does not download them or install Python packages automatically. The existing QGIS repository version is unchanged.
+Version 0.7.0 is **not released**. The results of earlier versions do not apply to it, because the
+processing code, worker protocol and runtime setup changed.
 
-The Windows offline test package contains the plugin, a local Python 3.12 runtime, ONNX Runtime 1.23.0 with DirectML, and the Real-HAT ONNX model. Its model SHA-256 matches the digest in the source. Install this ZIP through QGIS Plugin Manager for a self-contained local test. It is not suitable for QGIS repository upload because it contains binaries.
+## Checked on Linux (2026-11-27)
 
-Checks performed on Windows:
+QGIS 4.4.0 (Qt 6), GDAL 3.12.2, Python 3.14, ONNX Runtime on CPU. The tests use real GDAL, the real
+QGIS task manager, the real worker process and real ONNX Runtime. A small test model that repeats
+pixels stands in for Real-HAT. See the test folder for the cases.
 
-- QGIS 3.44.12 and QGIS 4.2.3: runtime setup dialog, stored settings, menu registration and unload.
-- QGIS 3.44.12 and QGIS 4.2.3: real-model CPU inference on synthetic RGB and monochrome GeoTIFFs, including output dimensions and geotransform.
-- QGIS 4.2.3: repeated CPU and automatic DirectML GPU inference from the extracted offline ZIP.
-- QGIS 3.44.12 and QGIS 4.2.3: 10 package, native GUI and runtime-selection tests passed in each environment.
-- Source ZIP structural validation passed.
+## Not checked
 
-Before external distribution, verify model provenance and permission to redistribute the converted weights, and review the third-party runtime and library notices. QGIS repository approval rules also prohibit bundled binaries. Users of the QGIS-repository build need a published, trustworthy way to obtain the separate runtime and model; no such download is configured or published by this change. Additional larger rasters, hardware, QGIS versions and platforms need testing.
+- The real `real_hat_64.onnx` model: pixel quality, speed, and loading it from memory.
+- Windows: runtime trust and self-containment check on the real runtime package, DirectML, file
+  publication, junctions, long paths, network shares and antivirus locks.
+- QGIS 3.34 and 3.44 with this version, and any Qt 5 build.
+- A real full disk or a failing network share.
+- The CI workflow in `.github/workflows` (it runs after a push).
+- Scenes of full Landsat size: time, memory and disk use.
+
+## Before release
+
+1. On Windows, run `tests/smoke_qgis_setup.py` and `tests/smoke_windows_processing.py` with each device
+   (`cpu`, `auto`, `gpu`) on the oldest and newest QGIS that you support.
+2. Look at a real scene at full size for seams and edge artifacts.
+3. If a supported QGIS version fails or stays untested, narrow `qgisMinimumVersion` or `qgisMaximumVersion`.
+4. Close every item in `docs/release/MODEL_PROVENANCE.md` before you distribute a runtime or model.

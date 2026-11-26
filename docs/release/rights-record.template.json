@@ -1,0 +1,54 @@
+{
+  "components": [
+    {
+      "name": "python",
+      "version": "",
+      "license": "",
+      "source": "",
+      "notice_file": "",
+      "redistribution_confirmed": false,
+      "confirmed_by": "",
+      "confirmed_on": ""
+    },
+    {
+      "name": "numpy",
+      "version": "",
+      "license": "",
+      "source": "",
+      "notice_file": "",
+      "redistribution_confirmed": false,
+      "confirmed_by": "",
+      "confirmed_on": ""
+    },
+    {
+      "name": "onnxruntime",
+      "version": "",
+      "license": "",
+      "source": "",
+      "notice_file": "",
+      "redistribution_confirmed": false,
+      "confirmed_by": "",
+      "confirmed_on": ""
+    },
+    {
+      "name": "directml",
+      "version": "",
+      "license": "",
+      "source": "",
+      "notice_file": "",
+      "redistribution_confirmed": false,
+      "confirmed_by": "",
+      "confirmed_on": ""
+    },
+    {
+      "name": "model-weights",
+      "version": "",
+      "license": "",
+      "source": "",
+      "notice_file": "",
+      "redistribution_confirmed": false,
+      "confirmed_by": "",
+      "confirmed_on": ""
+    }
+  ]
+}

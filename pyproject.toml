@@ -1,0 +1,20 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+filterwarnings = ["ignore::FutureWarning:osgeo.gdal"]
+
+[tool.ruff]
+line-length = 118
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B"]
+# B905 needs zip(strict=), which Python 3.9 in older QGIS builds does not have.
+ignore = ["B905"]
+
+[tool.mypy]
+ignore_missing_imports = true
+check_untyped_defs = true
+
+[tool.bandit]
+skips = []

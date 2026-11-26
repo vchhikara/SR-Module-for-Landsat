@@ -1,132 +1,128 @@
-"""Dependency-free structural verification for QGIS Python plugin packages."""
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Dependency-free verification of the QGIS plugin source tree and the repository ZIP."""
 
 import argparse
 import ast
 import configparser
 from pathlib import Path
 import re
+import stat
 import struct
 import sys
 import zipfile
 
-PLUGIN_FOLDER = 'landsat_sr'
-MANDATORY = ('__init__.py', 'metadata.txt', 'LICENSE', 'icon.png')
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from release_files import CACHE_NAMES, PLUGIN_FOLDER, RELEASE_FILES, is_link, looks_binary  # noqa: E402
+
+MAX_BYTES = 25 * 1024 * 1024
 METADATA_REQUIRED = (
     'name', 'qgisMinimumVersion', 'description', 'about', 'version',
     'author', 'email', 'repository',
 )
 
 
-def validate_tree(plugin, reject_cache=False):
+def _validate_metadata(plugin, errors):
+    config = configparser.ConfigParser(interpolation=None)
+    try:
+        config.read_string((plugin / 'metadata.txt').read_text(encoding='utf-8-sig'))
+    except (configparser.Error, UnicodeError) as exc:
+        errors.append('Invalid metadata: {}'.format(exc))
+        return
+    if not config.has_section('general'):
+        errors.append('Missing [general] metadata section')
+        return
+    data = config['general']
+    for field in METADATA_REQUIRED:
+        if not data.get(field, '').strip():
+            errors.append('Missing required metadata key: {}'.format(field))
+    for field in ('version', 'qgisMinimumVersion', 'qgisMaximumVersion'):
+        if not re.fullmatch(r'\d+(?:\.\d+){1,3}', data.get(field, '')):
+            errors.append('Missing or invalid {}'.format(field))
+    for field in ('tracker', 'homepage'):
+        if not data.get(field, '').startswith('https://'):
+            errors.append('Missing {} URL'.format(field))
+    if data.get('category') not in ('Vector', 'Raster', 'Database', 'Web', 'Mesh'):
+        errors.append('Invalid plugin category')
+    for field in ('experimental', 'deprecated'):
+        if data.get(field, '').lower() not in ('true', 'false'):
+            errors.append('Invalid {} value'.format(field))
+    icon = data.get('icon', '')
+    if icon and icon not in RELEASE_FILES:
+        errors.append('Metadata icon is not a release file')
+
+
+def validate_tree(plugin):
     """Return explicit failures, without importing QGIS or using third parties."""
     plugin = Path(plugin)
-    errors = []
     if not plugin.is_dir() or plugin.name != PLUGIN_FOLDER:
         return ['Expected plugin root directory: {}'.format(PLUGIN_FOLDER)]
-    for name in MANDATORY:
-        if not (plugin / name).is_file():
-            errors.append('Missing {}'.format(name))
-    for file in plugin.rglob('*'):
-        rel = file.relative_to(plugin)
-        if file.is_symlink():
-            errors.append('Symlink in package: {}'.format(rel))
-        is_cache = any(part in ('.git', '__pycache__', '.pytest_cache') for part in rel.parts)
-        if is_cache or file.suffix in ('.pyc', '.pyo'):
-            if reject_cache:
-                errors.append('Build/development cache: {}'.format(rel))
+    errors = []
+    present = set()
+    for path in sorted(plugin.rglob('*')):
+        relative = path.relative_to(plugin)
+        if is_link(path):
+            errors.append('Link in package: {}'.format(relative.as_posix()))
             continue
-        if file.is_file() and file.suffix == '.py':
+        if any(part in CACHE_NAMES for part in relative.parts) or not path.is_file():
+            continue
+        name = relative.as_posix()
+        present.add(name)
+        if name not in RELEASE_FILES:
+            errors.append('File is not in the release list: {}'.format(name))
+        with path.open('rb') as stream:
+            if looks_binary(name, stream.read(8)):
+                errors.append('Binary file not allowed on the QGIS site: {}'.format(name))
+        if path.suffix == '.py':
             try:
-                ast.parse(file.read_text(encoding='utf-8'), filename=str(file))
+                ast.parse(path.read_text(encoding='utf-8'), filename=name)
             except (SyntaxError, UnicodeError) as exc:
-                errors.append('Python invalid {}: {}'.format(rel, exc))
-    if (plugin / '__init__.py').is_file():
+                errors.append('Python invalid {}: {}'.format(name, exc))
+    errors += ['Missing {}'.format(name) for name in RELEASE_FILES if name not in present]
+    if '__init__.py' in present:
         try:
-            mod = ast.parse((plugin / '__init__.py').read_text(encoding='utf-8'))
-            if 'classFactory' not in [n.name for n in mod.body if isinstance(n, ast.FunctionDef)]:
+            module = ast.parse((plugin / '__init__.py').read_text(encoding='utf-8'))
+            if 'classFactory' not in [n.name for n in module.body if isinstance(n, ast.FunctionDef)]:
                 errors.append('__init__.py lacks classFactory')
         except (SyntaxError, UnicodeError):
-            pass
-    metadata_path = plugin / 'metadata.txt'
-    if metadata_path.is_file():
-        config = configparser.ConfigParser(interpolation=None)
-        try:
-            config.read_string(metadata_path.read_text(encoding='utf-8-sig'))
-            if not config.has_section('general'):
-                errors.append('Missing [general] metadata section')
-            else:
-                data = config['general']
-                for field in METADATA_REQUIRED:
-                    if not data.get(field, '').strip():
-                        errors.append('Missing required metadata key: {}'.format(field))
-                if not re.fullmatch(r'\d+(?:\.\d+){1,3}', data.get('version', '')):
-                    errors.append('Invalid metadata version')
-                if not re.fullmatch(r'\d+(?:\.\d+){1,3}', data.get('qgisMinimumVersion', '')):
-                    errors.append('Invalid minimum QGIS version')
-                if not re.fullmatch(r'\d+(?:\.\d+){1,3}', data.get('qgisMaximumVersion', '')):
-                    errors.append('Missing or invalid qgisMaximumVersion')
-                for field in ('tracker', 'homepage'):
-                    if not data.get(field, '').startswith('https://'):
-                        errors.append('Missing {} URL'.format(field))
-                if data.get('category') not in ('Vector', 'Raster', 'Database', 'Web', 'Mesh'):
-                    errors.append('Invalid plugin category')
-                for field in ('experimental', 'deprecated'):
-                    if data.get(field, '').lower() not in ('true', 'false'):
-                        errors.append('Invalid {} value'.format(field))
-                icon = data.get('icon', '')
-                if icon:
-                    icon_path = Path(icon)
-                    if icon_path.is_absolute() or '..' in icon_path.parts:
-                        errors.append('Icon path escapes plugin root')
-                    elif not (plugin / icon_path).is_file():
-                        errors.append('Missing metadata icon')
-        except (configparser.Error, UnicodeError) as exc:
-            errors.append('Invalid metadata: {}'.format(exc))
-    icon = plugin / 'icon.png'
-    if icon.is_file():
-        with icon.open('rb') as stream:
+            pass  # reported above
+    if 'metadata.txt' in present:
+        _validate_metadata(plugin, errors)
+    if 'icon.png' in present:
+        with (plugin / 'icon.png').open('rb') as stream:
             header = stream.read(24)
         if len(header) < 24 or header[:8] != b'\x89PNG\r\n\x1a\n':
             errors.append('Icon is not a valid PNG header')
-        else:
-            width, height = struct.unpack('>II', header[16:24])
-            if not width or not height:
-                errors.append('Invalid PNG dimensions')
-    for banned in ('.onnx', '.exe', '.dll', '.so', '.pyd'):
-        for file in plugin.rglob('*' + banned):
-            errors.append('Binary file not allowed on the QGIS site: {}'.format(file.relative_to(plugin)))
+        elif 0 in struct.unpack('>II', header[16:24]):
+            errors.append('Invalid PNG dimensions')
     return errors
 
 
 def validate_zip(path):
+    """The ZIP must hold exactly the release files. Nothing is extracted to disk."""
     errors = []
     with zipfile.ZipFile(path) as archive:
-        names = archive.namelist()
-        if not names:
-            errors.append('Empty ZIP')
-        for member in archive.infolist():
-            name = member.filename
-            components = Path(name).parts
-            if (not components or components[0] != PLUGIN_FOLDER
-                    or name.startswith('/') or '..' in components):
-                errors.append('Unsafe/unexpected ZIP location: {}'.format(name))
-            if member.flag_bits & 0x1:
-                errors.append('Encrypted ZIP member: {}'.format(name))
-            if any(part in ('.git', '__pycache__', '.pytest_cache') for part in components) or name.endswith(('.pyc', '.pyo')):
-                errors.append('Cache or compiled file in ZIP: {}'.format(name))
-            if (member.external_attr >> 16) & 0o170000 == 0o120000:
-                errors.append('Symbolic link in ZIP: {}'.format(name))
-        if len(names) != len(set(names)):
+        members = archive.infolist()
+        names = [m.filename for m in members]
+        expected = {PLUGIN_FOLDER + '/' + name for name in RELEASE_FILES}
+        errors += ['Unexpected ZIP member: {}'.format(n) for n in sorted(set(names) - expected)]
+        errors += ['Missing packaged {}'.format(n) for n in sorted(expected - set(names))]
+        if len(names) != len({n.casefold() for n in names}):
             errors.append('Duplicate ZIP names')
-        for item in MANDATORY:
-            if PLUGIN_FOLDER + '/' + item not in names:
-                errors.append('Missing packaged {}'.format(item))
-        total = sum(m.file_size for m in archive.infolist())
-        if total > 25 * 1024 * 1024:
+        total = sum(m.file_size for m in members)
+        if total > MAX_BYTES or Path(path).stat().st_size > MAX_BYTES:
             errors.append('Package exceeds 25 MB')
-        for name in names:
-            if name.endswith(('.onnx', '.exe', '.dll', '.so', '.pyd')):
-                errors.append('Binary file in ZIP: {}'.format(name))
+            return errors
+        for member in members:
+            if member.flag_bits & 0x1:
+                errors.append('Encrypted ZIP member: {}'.format(member.filename))
+                continue
+            if stat.S_ISLNK(member.external_attr >> 16):
+                errors.append('Symbolic link in ZIP: {}'.format(member.filename))
+            with archive.open(member) as stream:
+                if looks_binary(member.filename, stream.read(8)):
+                    errors.append('Binary file in ZIP: {}'.format(member.filename))
+        if not errors and archive.testzip() is not None:
+            errors.append('Corrupted ZIP member')
     return errors
 
 

@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.7.0
+
+Privacy and input
+
+- The report records only a fixed list of fields, with file names and no folder paths. Logs and messages remove credentials.
+- Only local raster files are accepted. VRT files, web services, database layers and virtual paths are refused.
+
+Output
+
+- NaN, infinite or far out-of-range model output stops the run.
+- Partial alpha stays partial. Ground control points and RPCs are scaled to the new pixel grid.
+- The TIFF carries its own warning and provenance tags.
+- The finished GeoTIFF is flushed, closed, read back and compared before publication.
+- Publication does not replace existing files. The report is published first and the GeoTIFF last.
+- One tile grid covers the whole image, so work splitting no longer changes the result.
+- Tiles without any valid pixel skip inference.
+
+Runtime and lifecycle
+
+- The runtime needs your trust once. A later change to any runtime file blocks it.
+- The plugin checks for 64-bit Python 3.11 or later and a self-contained runtime.
+- The worker runs isolated with a minimal environment, uses pipes without temporary arrays, and stops after a deadline.
+- The model is hashed and loaded from the same bytes.
+- Unloading the plugin cancels its tasks. Two tasks cannot write the same output.
+
+Packaging
+
+- The validator accepts exactly the release files. Builders refuse links.
+- The offline ZIP is reproducible, records a manifest, and needs a rights record or an internal test mark.
+- Removed the unused `worker.py` and `onnx_worker.py`.
+
+If you configured a runtime in an earlier version, configure it again to trust it.
+
 ## 0.6.3
 
 - Configure a separately supplied Windows inference runtime and model from the Raster menu.

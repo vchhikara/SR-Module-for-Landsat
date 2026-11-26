@@ -1,4 +1,8 @@
-"""Run real QGIS/GDAL/ONNX inference using an explicitly supplied runtime directory."""
+"""Manual: real QGIS, GDAL and the real model with an explicitly supplied runtime package.
+
+Set LANDSAT_SR_RUNTIME_PACKAGE to a folder with runtime/ and weights/. This runs the runtime.
+Optional: LANDSAT_SR_TEST_DEVICE (cpu, auto, gpu). Run it with the QGIS Python.
+"""
 import json
 import os
 from pathlib import Path
@@ -10,42 +14,63 @@ from osgeo import gdal, osr
 from qgis.core import QgsApplication
 
 sys.path.insert(0, os.environ.get('LANDSAT_SR_TEST_PLUGIN_ROOT', str(Path(__file__).resolve().parents[1])))
-from landsat_sr.plugin import RunTask
-from landsat_sr.runtime_config import check_paths
+from landsat_sr import runtime_config  # noqa: E402
+from landsat_sr.plugin import RunTask  # noqa: E402
 
 bundle = Path(os.environ['LANDSAT_SR_RUNTIME_PACKAGE'])
 device = os.environ.get('LANDSAT_SR_TEST_DEVICE', 'cpu')
 python = bundle / 'runtime' / 'python.exe'
-weights = bundle / 'weights'
-assert check_paths(str(python), str(weights / 'real_hat_64.onnx')) == ''
+model = bundle / 'weights' / 'real_hat_64.onnx'
+assert runtime_config.check_paths(str(python), str(model)) == ''
+print('runtime:', runtime_config.probe(python)['version'], flush=True)  # must be self-contained
+trusted = runtime_config.fingerprint(python.parent)
 app = QgsApplication([], False)
 app.initQgis()
 with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
-    for mode, channels in [('rgb', 3), ('mono', 1)]:
-        source = root / (mode + '_input.tif')
-        destination = root / (mode + '_output.tif')
-        ds = gdal.GetDriverByName('GTiff').Create(str(source), 8, 8, channels, gdal.GDT_Byte)
-        ds.SetGeoTransform((10, 30, 0, 20, 0, -30))
-        crs = osr.SpatialReference(); crs.ImportFromEPSG(32643); ds.SetProjection(crs.ExportToWkt())
+    # (name, colour bands, alpha value or None, size). The last two sizes need several tiles.
+    for name, channels, alpha, size in [('rgb', 3, None, 8), ('mono', 1, None, 8),
+                                        ('rgba_large', 3, 127, 210), ('mono_large', 1, None, 150)]:
+        source = root / (name + '_input.tif')
+        destination = root / (name + '_output.tif')
+        bands = channels + (alpha is not None)
+        ds = gdal.GetDriverByName('GTiff').Create(str(source), size, size, bands, gdal.GDT_Byte,
+                                                  options=['PHOTOMETRIC=RGB', 'ALPHA=YES'] if alpha else [])
+        ds.SetGeoTransform((10, 30, 2, 20, 1, -30))
+        crs = osr.SpatialReference()
+        crs.ImportFromEPSG(32643)
+        ds.SetProjection(crs.ExportToWkt())
+        ramp = (np.add.outer(np.arange(size), np.arange(size)) % 180 + 40).astype(np.uint8)
         for i in range(channels):
-            values = np.arange(64, dtype=np.uint8).reshape(8, 8) + 50 + i
-            ds.GetRasterBand(i + 1).WriteArray(values)
+            ds.GetRasterBand(i + 1).WriteArray(ramp + i)
+        if alpha:
+            ds.GetRasterBand(bands).Fill(alpha)
         ds = None
-        options = dict(source=str(source), output=str(destination), bands=[1, 2, 3], input_mode=mode,
-                       auto_range=True, minimum=0, maximum=255, python=str(python),
-                       weights=str(weights), model='real-hat-sharper', device=device, tile=64, add=False)
-        task = RunTask(options, lambda *args: None)
+        options = dict(source=str(source), output=str(destination), bands=[1, 2, 3],
+                       input_mode='rgb' if channels == 3 else 'mono', auto_range=True, minimum=0, maximum=255,
+                       python=str(python), model_path=str(model), runtime_fingerprint=trusted,
+                       device=device, add=False)
+        task = RunTask(options, None)
         assert task.run(), task.error + '\n' + task.debug_traceback
         ds = gdal.Open(str(destination))
-        assert (ds.RasterXSize, ds.RasterYSize, ds.RasterCount) == (32, 32, channels)
-        assert ds.GetGeoTransform() == (10.0, 7.5, 0.0, 20.0, 0.0, -7.5)
-        assert ds.GetProjection()
-        assert ds.ReadAsArray().max() > 0
+        out = ds.ReadAsArray()
+        out = out if out.ndim == 3 else out[None]
+        assert (ds.RasterXSize, ds.RasterYSize, ds.RasterCount) == (size * 4, size * 4, bands)
+        assert ds.GetGeoTransform() == (10.0, 7.5, 0.5, 20.0, 0.25, -7.5)
+        assert ds.GetProjection() and 'DERIVED' in ds.GetMetadataItem('SR_NOTICE')
+        # A real model keeps the coarse content: each 4x4 block mean stays near its input pixel.
+        small = out[0].reshape(size, 4, size, 4).mean(axis=(1, 3))
+        error = float(np.abs(small - ramp).mean())
+        assert error < 15, 'mean block error {:.2f}'.format(error)
+        if alpha:
+            assert (out[-1] == alpha).all()
         report = json.loads(Path(str(destination) + '.json').read_text(encoding='utf-8'))
+        assert str(bundle) not in json.dumps(report)
         assert report['backend'] in ('CPU', 'DirectML GPU')
-        if device == 'cpu': assert report['backend'] == 'CPU'
-        if device == 'gpu': assert report['backend'] == 'DirectML GPU'
-        print('{} real-model inference passed on {}'.format(mode, report['backend']), flush=True)
+        if device == 'cpu':
+            assert report['backend'] == 'CPU'
+        if device == 'gpu':
+            assert report['backend'] == 'DirectML GPU'
+        print('{} passed on {} (mean block error {:.2f})'.format(name, report['backend'], error), flush=True)
         ds = None
 app.exitQgis()
