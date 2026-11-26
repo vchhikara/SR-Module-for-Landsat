@@ -25,6 +25,7 @@ Output
 
 Runtime and lifecycle
 
+- A cancelled task shows a message bar note, not a dialog. The dialog could stop QGIS from closing.
 - The runtime needs your trust once. A later change to any runtime file blocks it.
 - The plugin checks for 64-bit Python 3.11 or later and a self-contained runtime.
 - The worker runs isolated with a minimal environment, uses pipes without temporary arrays, and stops after a deadline.

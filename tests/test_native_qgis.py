@@ -124,6 +124,23 @@ def test_two_tasks_are_tracked_and_the_same_output_is_refused(qgs, plugin, tmp_p
     assert (tmp_path / 'a.tif').is_file() and (tmp_path / 'b.tif').is_file()
 
 
+def test_a_cancelled_task_opens_no_dialog(qgs, plugin, tmp_path):
+    """QGIS cancels tasks while it closes, before it unloads plugins. A modal box would block that."""
+    from landsat_sr import plugin as module
+    instance, iface = plugin
+    state = {}
+    with mock.patch.object(module.RunTask, '_predictor', slow_predictor(0.3, state)), \
+            mock.patch.object(QMessageBox, 'warning') as warning:
+        task = instance.start_task(options(tmp_path))
+        pump(qgs, lambda: state.get('started'))
+        task.cancel()  # the same call as the QGIS task list and QGIS shutdown
+        pump(qgs, lambda: not instance.tasks)
+        qgs.processEvents()
+    warning.assert_not_called()
+    assert 'cancelled' in iface.messageBar().pushInfo.call_args[0][1].lower()
+    assert not (tmp_path / 'out.tif').exists() and not list(tmp_path.glob('.qgis_sr_*'))
+
+
 def test_a_failure_shows_a_redacted_message(qgs, plugin, tmp_path):
     from landsat_sr import plugin as module
     instance, _ = plugin

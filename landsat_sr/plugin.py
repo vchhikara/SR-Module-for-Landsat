@@ -314,7 +314,11 @@ class SuperResolutionPlugin:
     def finished(self, task, success):
         self.tasks.pop(_destination_key(task.options['output']), None)
         if not success:
-            self._warn(task.error or 'Processing failed or was cancelled.')
+            if task.isCanceled():
+                # No dialog: QGIS also cancels tasks while it closes.
+                self.iface.messageBar().pushInfo(TITLE, 'Processing was cancelled. No output was written.')
+            else:
+                self._warn(task.error or 'Processing failed.')
             return
         if task.report.get('private_files'):
             self.iface.messageBar().pushWarning(
