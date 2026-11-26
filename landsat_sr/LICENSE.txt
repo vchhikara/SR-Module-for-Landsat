@@ -1,0 +1,35 @@
+SR Module for Landsat: copyright and credits
+
+1. Plugin
+
+Copyright (c) 2026 Vipul Chhikara.
+
+The plugin source code is licensed under GPL-3.0-or-later. The full text of the
+GNU General Public License, version 3, is in the file LICENSE in this folder.
+
+The plugin icon (icon.png) and the repository banner (docs/images/banner.png)
+are the work of Vipul Chhikara.
+
+2. HAT and Real-HAT (third-party model)
+
+This plugin uses the Real-HAT GAN "sharper" super-resolution model.
+
+  Work:    HAT: Hybrid Attention Transformer for Image Restoration
+  Authors: Xiangyu Chen, Xintao Wang, Wenlong Zhang, Xiangtao Kong,
+           Jiantao Zhou and Chao Dong
+  Project: https://github.com/XPixelGroup/HAT
+  Weights mirror: https://huggingface.co/Acly/hat
+  License: Apache License, Version 2.0
+           https://www.apache.org/licenses/LICENSE-2.0
+
+Change notice: the file real_hat_64.onnx is a converted form (ONNX export for a
+64 x 64 input tile) of the checkpoint Real_HAT_GAN_sharper.pth.
+
+The HAT authors do not endorse this plugin. The Apache License applies to their
+work only. The plugin source package does not contain the model. A package that
+contains the model must also contain a copy of the Apache License, Version 2.0.
+
+3. Runtime components
+
+A separate runtime package has other third-party components with their own
+terms. See THIRD_PARTY_NOTICES.md.

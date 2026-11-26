@@ -17,4 +17,5 @@ in the source repository.
 
 ## Assets
 
-`icon.png` and the repository banner have no recorded author or license yet.
+`icon.png` and the repository banner are the work of Vipul Chhikara. See `LICENSE.txt` for this credit and
+for the credit to the HAT authors.

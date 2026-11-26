@@ -27,15 +27,27 @@ This record separates verified facts from open questions. It is not legal advice
 - **Runtime versions.** Python 3.12.10, NumPy 2.2.6, ONNX Runtime DirectML 1.23.0. `DirectML.dll` reports
   file version 1.15.4.
 
+## Owner statements (2026-11-27)
+
+The repository owner, Vipul Chhikara, stated the following. These are the owner's statements and
+decisions. No test or outside source checked them.
+
+- The HAT model is under Apache-2.0, and the owner accepts this as the permission to use and share it.
+  This decision covers the questions about the weights and their training data.
+- All other rights in the plugin and its images, including `landsat_sr/icon.png` and
+  `docs/images/banner.png`, belong to the owner.
+- The owner confirms the right to redistribute all five components: Python, NumPy, ONNX Runtime,
+  DirectML and the model weights.
+
+The credit to the HAT authors is in `landsat_sr/LICENSE.txt`.
+
 ## Not verified
 
-- That the ONNX file was made from that checkpoint. Only the 0.6.3 notice says so.
+- That the ONNX file was made from the named checkpoint. Only the 0.6.3 notice says so.
 - The conversion script and settings. They are not in this repository or its history.
-- Whether the Apache-2.0 license of the upstream repository covers the published weights. The tag on a
-  mirror is not a grant from the authors.
-- Terms of the data that trained the weights.
-- The right to redistribute the converted ONNX file.
-- Author and license of `landsat_sr/icon.png` and `docs/images/banner.png`.
+- A license grant from the HAT authors that names the published weights. The tag on a mirror is not
+  such a grant.
+- The terms of the data that trained the weights. Nobody read them.
 
 ## To close the record
 
@@ -44,12 +56,11 @@ This record separates verified facts from open questions. It is not legal advice
 | 1. Name the source checkpoint, its download address and its SHA-256 | Recorded above, from the 0.6.3 notice. The hash matches the public mirror |
 | 2. Commit the conversion script. Record the versions of the tools | Open. No script was found. Only the PyTorch version and opset are known |
 | 3. Convert again. Compare the numeric output with the shipped model | Open. It needs step 2 or a new script, the checkpoint and PyTorch |
-| 4. Record the license grant for the weights | Open. No grant for the weights from the authors was found or recorded |
-| 5. Copy `rights-record.template.json`. Complete every field. Add one notice file for each component | Open. A draft with versions, sources and notice files is kept outside the repository, next to the runtime. The owner has not confirmed redistribution |
+| 4. Record the license grant for the weights | Accepted by the owner as Apache-2.0. See the owner statements |
+| 5. Copy `rights-record.template.json`. Complete every field. Add one notice file for each component | Done. The owner confirmed redistribution. The record and notice files are kept outside the repository, next to the runtime. A distributable build puts them in the ZIP |
 
-The offline package builder refuses a distributable build until step 5 is complete. It refused the draft,
-because `redistribution_confirmed`, `confirmed_by` and `confirmed_on` are empty. It checks that the
+The offline package builder refuses a distributable build until step 5 is complete. It checks that the
 record is complete. It cannot check that the statements are true.
 
-An internal test build has no `third_party` license files. The 0.6.3 package had them. A build with a
-completed rights record adds the notice files under `licenses/`.
+An internal test build has no third-party license files. A build with a completed rights record adds the
+notice files under `licenses/`.

@@ -6,7 +6,7 @@ import stat
 
 PLUGIN_FOLDER = 'landsat_sr'
 RELEASE_FILES = (
-    'CHANGELOG.md', 'LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md', '__init__.py', 'constants.py',
+    'CHANGELOG.md', 'LICENSE', 'LICENSE.txt', 'README.md', 'THIRD_PARTY_NOTICES.md', '__init__.py', 'constants.py',
     'engine.py', 'icon.png', 'metadata.txt', 'plugin.py', 'publish.py', 'raster.py', 'redact.py',
     'runtime_config.py', 'stream_worker.py', 'tiling.py', 'weights/MODEL_SHA256.txt', 'worker_client.py',
 )

@@ -2,6 +2,10 @@
 
 ## 0.7.0
 
+Credits
+
+- `LICENSE.txt` records the copyright of the plugin and its images, and credits the HAT authors.
+
 Supported versions
 
 - The plugin now supports QGIS 4.2 only. It was tested on Windows with QGIS 4.2.0. Older and newer

@@ -26,7 +26,7 @@ SHA-256 matches `3f47670dfeba712d68cd479f11cfe25866453c08b840269102b7a037eebc890
 | 6. File behaviour | Passed, except a nearly full disk and a remote share, which were not checked. A real disk test needs a small volume, which needs administrator rights |
 | 7. Lifecycle | Passed in the QGIS application |
 | 8. Versions | Range narrowed to QGIS 4.2 |
-| 9. Offline builder | Passed with `--internal-test-build`. The "Install from ZIP" page passed |
+| 9. Offline builder | Passed as an internal test build and with a rights record. The "Install from ZIP" page passed |
 | 10. CI | The first run failed. It is fixed. See [CI](#ci) |
 
 ### Task 1: test suite
@@ -222,6 +222,15 @@ automated. Nobody did them by hand, and no folder browsing in the chooser was te
 status column of the running task. The task ended 9.3 s after the click. No dialog, worker process, output
 file, staging file or map layer remained, and there was no new QGIS crash dump.
 
+**Build with a rights record.** After the owner confirmed redistribution, the builder made
+`landsat_sr_0.7.0_windows_offline.zip` (128 MB, SHA-256
+`a3b25eb84407fe71361caf13e25c28ded8563be6a76bd777872adf0729466b68`). It has no `DO_NOT_DISTRIBUTE.txt`.
+It has `LICENSE.txt`, the rights record and five notice files. All 1280 manifest hashes matched. This ZIP
+passed the same automated "Install from ZIP" page test in a new profile. All five smoke cases then passed
+on `cpu`, `auto` and `gpu` from that installed copy. The GPU watchdog saw a peak of 69 C and did not trip.
+The dialog, disable, close and cancel tests were not repeated on this ZIP. Its plugin Python code is the
+same as in the ZIP that passed them. The ZIP was not uploaded or published.
+
 ## GPU safety during tests
 
 `scripts/gpu_watchdog.ps1` reads `nvidia-smi` and stops the plugin's model process before the GPU gets too
@@ -260,10 +269,14 @@ QGIS 4.4.0 (Qt 6), GDAL 3.12.2, Python 3.14, ONNX Runtime on CPU, with a small t
 ## Before release
 
 1. Run one full-size scene and inspect it.
-2. Close every item in `docs/release/MODEL_PROVENANCE.md` before you distribute a runtime or model.
+2. Steps 2 and 3 of `docs/release/MODEL_PROVENANCE.md` (conversion script and numeric comparison) are
+   open. The owner completed the rights record without them.
 
 ## Owner decisions (2026-11-27)
 
 - The `GPL-3.0-or-later` lines in the source files are confirmed.
 - It is confirmed that this repository no longer builds the `RGB SR Module Mono` variant. The only package
   scripts build the `landsat_sr` plugin. The single-band input mode of that plugin stays.
+- The owner confirmed redistribution of all five runtime and model components, and accepted Apache-2.0
+  as the permission for the HAT model. The icon and banner are the owner's work. The HAT credit is in
+  `landsat_sr/LICENSE.txt`.
