@@ -18,7 +18,7 @@ SHA-256 matches `3f47670dfeba712d68cd479f11cfe25866453c08b840269102b7a037eebc890
 
 | Task | Result |
 |---|---|
-| 1. Test suite | Passed: 198 passed, 11 skipped |
+| 1. Test suite | Passed: 200 passed, 11 skipped |
 | 2. Runtime rule | Passed. The existing runtime is self-contained. The rule was not changed |
 | 3. Smoke scripts | Passed on `cpu`, `auto` and `gpu` |
 | 4. Real model | Passed. It loads from memory |
@@ -100,6 +100,41 @@ GPU, about 10 hours on this CPU, and an output file of about 4 GB.
 The model is a general RGB model. It adds estimated detail. A low block error does not show that the
 added detail is real.
 
+### Task 5 continued: small windows of different terrain
+
+Twenty windows of 256 x 256 input pixels ran on the DirectML GPU, with the engine of `a42e56e` and with
+the fixed engine. Sources: Landsat 9 L2SP path 145 row 39, Landsat 8 path 147 row 41 and path 143 row 41,
+Cartosat-1 PAN (10 bits per pixel) and one 8-bit Sentinel-2 RGB file. All are real imagery.
+
+**Fixed defect: data with small values in a 16-bit file.** The Cartosat window uses values of about 60 to
+170. After the first 16-bit fix, its output was still black. The minimum stretch was one sixteenth of
+0 to 65535, which is far above these values. For a tile whose largest value is below that minimum, the
+minimum span is now the largest value. The other 19 windows gave the same numbers before and after.
+
+The table gives the block error divided by the standard deviation of the input window (lower is better),
+then the correlation:
+
+| Window content | `a42e56e` | Fixed |
+|---|---|---|
+| Snow and ice | 0.08 / 0.994 | 0.07 / 0.996 |
+| Dense forest | 1.26 / 0.373 | 0.20 / 0.979 |
+| Deep terrain shadow | 0.30 / 0.942 | 0.11 / 0.987 |
+| Cloud, Himalaya | 0.10 / 0.993 | 0.09 / 0.995 |
+| Rugged relief | 0.06 / 0.996 | 0.05 / 0.997 |
+| Path 147: seven windows of haze or cloud | 0.11 to 2.00 / 0.641 to 0.996 | 0.05 to 0.22 / 0.990 to 0.999 |
+| Path 143: three windows (rivers, hills, dark area) | 0.44 to 2.60 / 0.158 to 0.877 | 0.09 to 0.21 / 0.965 to 0.993 |
+| Mono 15 m pan, haze | 1.42 / 0.956 | 0.08 / 0.996 |
+| Mono NIR, snow | 0.08 / 0.994 | 0.07 / 0.995 |
+| Mono NIR, haze | 1.46 / 0.938 | 0.08 / 0.996 |
+| Mono Cartosat, built-up area | 1.86 / 0.106 | 0.15 / 0.977 |
+| Sentinel-2, 8-bit RGB | 0.08 / 0.993 | 0.07 / 0.994 |
+
+In the fixed outputs, the tile-line jump ratio was inside the range of the other line offsets in every
+window. Alpha matched the input mask where the output had alpha. A 384 x 384 part of each output was
+inspected by eye. It agreed with its input in all 20 windows. The cloud and haze windows have weak fine
+detail (detail correlation as low as 0.58). The Path 147 scene showed no clear ground in these windows,
+so desert, city and open water of that scene were not tested.
+
 ### Task 6: file behaviour
 
 These cases used the real engine, the real worker process and the small test model, with CPU
@@ -171,6 +206,14 @@ profile. A script called it, so the file chooser was not used. The plugin became
 from the new profile. The bundled trust record matched the installed runtime. All five smoke cases
 passed on `cpu`, `auto` and `gpu` from this installed copy.
 
+## GPU safety during tests
+
+`scripts/gpu_watchdog.ps1` reads `nvidia-smi` and stops the plugin's model process before the GPU gets too
+hot. It changes no GPU setting. A trip test with a 1 C limit stopped only the matching test processes. An
+unrelated Python process stayed alive. It was not tested with a really hot GPU. In a monitored part of
+the later tests (195 readings), the peak was 70 C, with no hardware slowdown and no trip. Earlier runs
+were not monitored. The plugin itself does not start the watchdog.
+
 ## CI
 
 [Run 45880597343](https://github.com/vchhikara/SR-Module-for-Landsat/actions/runs/45880597343) on
@@ -191,7 +234,7 @@ QGIS 4.4.0 (Qt 6), GDAL 3.12.2, Python 3.14, ONNX Runtime on CPU, with a small t
 ## Not checked
 
 - A full-size Landsat scene: time, memory, disk use and visual quality.
-- Visual quality on other scenes, sensors, monochrome 16-bit data and water or snow areas.
+- Visual quality on desert, large open water, and sensors other than those listed in task 5.
 - A nearly full disk, a remote network share, a network failure and real antivirus products.
 - Long paths with `LongPathsEnabled` = 0.
 - Cancel with the button in the QGIS task list. The tests call the same task `cancel` method.

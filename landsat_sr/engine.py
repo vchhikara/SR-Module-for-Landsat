@@ -15,8 +15,9 @@ from .constants import (BATCH, MODEL_NAME, MODEL_SHA256, NOTICE, PLUGIN_VERSION,
 _STAGING_PREFIX = '.qgis_sr_'
 _LUMA = np.array([0.2126, 0.7152, 0.0722], np.float32)
 # 16-bit imagery often uses a few percent of its range. Each tile is stretched to its own range for
-# the model and mapped back afterwards. A tile is never stretched more than 1 / _MIN_SPAN times,
-# so that flat water or haze is not turned into strong noise.
+# the model and mapped back afterwards. The stretched span is at least _MIN_SPAN, so that flat water
+# or haze is not turned into strong noise. Some sensors use only 8 to 11 bits of a 16-bit file. For a
+# tile whose largest value is below _MIN_SPAN, the minimum span is that value instead.
 _MIN_SPAN = 1.0 / 16
 # A model may overshoot 0..1 a little. A value this far out means broken inference.
 _SANE_LIMIT = 10.0
@@ -56,7 +57,8 @@ def _condition(tile, valid, stretch):
     offset, span = 0.0, 1.0
     if stretch:
         low, high = float(good.min()), float(good.max())
-        span = min(max(high - low, _MIN_SPAN), 1.0)
+        floor = max(min(_MIN_SPAN, high), 1.0 / 65535)  # never zero
+        span = min(max(high - low, floor), 1.0)
         offset = min(max((low + high - span) / 2, 0.0), 1.0 - span)
     prepared = ((tile - offset) / span).astype(np.float32)
     prepared[~valid] = (good.mean(axis=0) - offset) / span

@@ -80,7 +80,7 @@ With **Add output to QGIS** selected, the plugin adds the result to the project 
 
 - RGB processing uses the three selected bands. Monochrome output has one gray band. An alpha band is added when the input has alpha, NoData or a mask.
 - Display scaling maps the chosen input range to the output integer range. The default range is 0 to 255 for 8-bit data and 0 to 65535 for 16-bit data.
-- For 16-bit input, the plugin stretches each tile to its own value range for the model, at most 16 times, and then maps the result back. Output values stay on the input scale. Nothing is clipped by this step.
+- For 16-bit input, the plugin stretches each tile to its own value range for the model and then maps the result back. A flat tile is stretched at most 16 times, or to its largest value if that value is below one sixteenth of the display range. Output values stay on the input scale. Nothing is clipped by this step.
 - The plugin does not read Landsat product metadata. It does not apply scale and offset values. It does not mask QA cloud or shadow flags.
 - The output TIFF carries its own warning, model hash, scale, source file name and display range.
 - The whole image uses one tile grid. How the plugin splits its work does not change the result. The model still sees only 64 × 64 pixels at a time.
@@ -120,6 +120,12 @@ Run the tests with the QGIS bindings of your system:
 export QT_QPA_PLATFORM=offscreen
 export PYTHONPATH=/usr/share/qgis/python:/usr/lib/python3/dist-packages
 /usr/bin/python3 -m pytest -q tests
+```
+
+During long GPU tests on an NVIDIA card, run the watchdog in a second window. It stops the model process if the GPU gets too hot:
+
+```powershell
+pwsh -File scripts\gpu_watchdog.ps1 -LogPath gpu.csv
 ```
 
 The file `scripts/release_files.py` lists the allowed files. The validator refuses every other file. Both builders produce the same ZIP bytes for the same input. The QGIS site rejects binary files and ZIPs above 25 MB, so the repository ZIP omits the model and the runtime.

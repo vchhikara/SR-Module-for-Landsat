@@ -544,6 +544,32 @@ def test_no_data_pixels_do_not_enter_the_model_as_black(tmp_path):
     np.testing.assert_allclose(tile[:, :20], expected, atol=1e-3)
 
 
+def test_data_that_uses_few_bits_of_a_16_bit_file_keeps_its_detail(tmp_path):
+    """Some sensors store 8 to 11 bit values in UInt16, for example 60 to 170."""
+    seen = []
+
+    def record(batch):
+        seen.extend(float(tile.max()) for tile in batch)
+        return coarse_model(batch)
+    data = RNG.integers(60, 171, (3, 100, 130), np.uint16)
+    _, out = run(tmp_path, make(tmp_path / 'in.tif', data, gdal.GDT_UInt16), FakePredictor(record))
+    assert min(seen) > 0.7
+    error = np.abs(pixels(out).astype(np.int32) - upscaled(data).astype(np.int32))
+    assert error.mean() < 2
+
+
+def test_a_flat_area_with_small_values_is_not_stretched_into_noise(tmp_path):
+    seen = []
+
+    def record(batch):
+        seen.extend(float(np.ptp(tile)) for tile in batch)
+        return nearest4(batch)
+    data = RNG.integers(60, 64, (3, 64, 64), np.uint16)
+    _, out = run(tmp_path, make(tmp_path / 'in.tif', data, gdal.GDT_UInt16), FakePredictor(record))
+    assert seen[0] < 0.1
+    np.testing.assert_array_equal(pixels(out), upscaled(data))
+
+
 def test_gdal_configuration_is_restored(tmp_path):
     gdal.SetThreadLocalConfigOption('GDAL_PAM_ENABLED', None)
     run(tmp_path, small(tmp_path))

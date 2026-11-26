@@ -16,7 +16,8 @@ Output
 
 - 16-bit input keeps its detail. Real Landsat land values use a few percent of 0 to 65535, and the model
   returned smeared, shifted-colour images for them. Each tile is now stretched to its own range for the
-  model and mapped back, with a stretch of at most 16 times. Output values stay on the input scale.
+  model and mapped back. Output values stay on the input scale. A flat tile is stretched at most 16 times.
+  A tile whose values are all small, as from 8 to 11 bit sensors, is scaled to its largest value instead.
 - Pixels without data reach the model as the mean of the tile, not as black.
 - NaN, infinite or far out-of-range model output stops the run.
 - Partial alpha stays partial. Ground control points and RPCs are scaled to the new pixel grid.

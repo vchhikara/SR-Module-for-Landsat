@@ -26,7 +26,8 @@ print('runtime:', runtime_config.probe(python)['version'], flush=True)  # must b
 trusted = runtime_config.fingerprint(python.parent)
 app = QgsApplication([], False)
 app.initQgis()
-with tempfile.TemporaryDirectory() as directory:
+# A failed check leaves its raster open. Do not let the cleanup error on Windows hide that failure.
+with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as directory:
     root = Path(directory)
     # (name, colour bands, alpha value or None, size, value scale). The large sizes need several tiles.
     # A scale above 1 gives UInt16 data in a narrow part of 0..65535, like Landsat land values.
