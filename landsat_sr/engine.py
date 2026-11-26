@@ -19,6 +19,11 @@ _LUMA = np.array([0.2126, 0.7152, 0.0722], np.float32)
 # or haze is not turned into strong noise. Some sensors use only 8 to 11 bits of a 16-bit file. For a
 # tile whose largest value is below _MIN_SPAN, the minimum span is that value instead.
 _MIN_SPAN = 1.0 / 16
+# A few extreme pixels (saturation, a cloud edge, a dead pixel) must not set the stretch. It may reach
+# past the 1st and 99th percentile by at most _TAIL_REACH times the distance between them. This changes
+# nothing for a tile without such extremes. Pixels beyond the limit keep their value, see _condition.
+_PERCENTILES = (1.0, 99.0)
+_TAIL_REACH = 1.0
 # A model may overshoot 0..1 a little. A value this far out means broken inference.
 _SANE_LIMIT = 10.0
 
@@ -49,20 +54,32 @@ def _prepare_rows(spec, y, rows, low, high):
 
 
 def _condition(tile, valid, stretch):
-    """The model input for one tile: (tile - offset) / span. Undo it as result * span + offset.
+    """The model input for one tile: (tile - offset) / span, limited to 0..1.
 
-    Pixels without data get the mean of the valid pixels, so that the model sees no false black edge.
+    Returns (input, offset, span, excess). Undo it as result * span + offset + excess. excess holds what
+    the limit removed from extreme valid pixels, at input size, or None. It is added back without
+    enhancement, so those pixels keep their value. Pixels without data get the mean of the valid pixels,
+    so that the model sees no false black edge.
     """
     good = tile[valid]
     offset, span = 0.0, 1.0
     if stretch:
-        low, high = float(good.min()), float(good.max())
+        near, far = (float(v) for v in np.percentile(good, _PERCENTILES))
+        reach = _TAIL_REACH * (far - near)
+        low, high = max(float(good.min()), near - reach), min(float(good.max()), far + reach)
         floor = max(min(_MIN_SPAN, high), 1.0 / 65535)  # never zero
         span = min(max(high - low, floor), 1.0)
         offset = min(max((low + high - span) / 2, 0.0), 1.0 - span)
     prepared = ((tile - offset) / span).astype(np.float32)
-    prepared[~valid] = (good.mean(axis=0) - offset) / span
-    return np.clip(prepared, 0, 1), np.float32(offset), np.float32(span)
+    limited = np.clip(prepared, 0, 1)
+    excess = None
+    if stretch:
+        excess = (prepared - limited) * np.float32(span)
+        excess[~valid] = 0
+        if np.abs(excess).max() < 1e-6:  # rounding only
+            excess = None
+    limited[~valid] = np.clip((np.clip(good, offset, offset + span).mean(axis=0) - offset) / span, 0, 1)
+    return limited, np.float32(offset), np.float32(span), excess
 
 
 def _planes(spec, colour, coverage):
@@ -105,8 +122,10 @@ def enlarge(spec, low, high, predictor, output, progress, canceled):
             result = predictor.predict(batch)
             check_prediction(result, len(group))
             predicted += len(group)
-            for i, tile, (_, offset, span) in zip(group, result, prepared):
+            for i, tile, (_, offset, span, excess) in zip(group, result, prepared):
                 part = tile[:tile_h * SCALE, :tile_w * SCALE] * span + offset
+                if excess is not None:
+                    part += np.repeat(np.repeat(excess, SCALE, axis=0), SCALE, axis=1)
                 weight = y_weights[row_number][:, None, None] * x_weights[i][None, :, None]
                 left = xs[i] * SCALE
                 top = (y - done_rows) * SCALE

@@ -23,6 +23,7 @@ Output
   model and mapped back. Output values stay on the input scale. A flat tile is stretched at most 16 times.
   A tile whose values are all small, as from 8 to 11 bit sensors, is scaled to its largest value instead.
 - Pixels without data reach the model as the mean of the tile, not as black.
+- A few extreme pixels no longer set the stretch of a 16-bit tile. They keep their values.
 - NaN, infinite or far out-of-range model output stops the run.
 - Partial alpha stays partial. Ground control points and RPCs are scaled to the new pixel grid.
 - The TIFF carries its own warning and provenance tags.

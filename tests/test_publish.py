@@ -1,5 +1,6 @@
 """Publication on its own. No GDAL, so the Windows CI job runs these too."""
 import os
+from pathlib import Path
 import subprocess
 import threading
 
@@ -100,3 +101,49 @@ def test_a_lasting_refusal_still_fails_and_publishes_nothing(tmp_path, monkeypat
         published_pair(tmp_path)
     assert len(attempts) == 3
     assert not (tmp_path / 'out.tif').exists() and not (tmp_path / 'out.tif.json').exists()
+
+
+@pytest.mark.skipif(os.name == 'nt', reason='the hard link fallback is for POSIX')
+@pytest.mark.parametrize('stuck', ['result.tif', 'report.json'])
+def test_a_staging_file_that_cannot_be_deleted_does_not_break_the_pair(tmp_path, monkeypatch, stuck):
+    """Without hard links, the copy is the publication. A failed delete of the source is not a failure."""
+    real_unlink = os.unlink
+
+    def no_link(*args):
+        raise PermissionError(1, 'hard links not supported')
+
+    def unlink(path, *args, **kwargs):
+        if os.path.basename(path) == stuck and '.qgis_sr_' in str(path):
+            raise PermissionError(13, 'locked')
+        return real_unlink(path, *args, **kwargs)
+    monkeypatch.setattr(publish.os, 'link', no_link)
+    monkeypatch.setattr(publish.os, 'unlink', unlink)
+    monkeypatch.setattr(publish, '_RETRY_DELAYS', (0, 0))
+    dest, report, _ = published_pair(tmp_path)
+    assert dest.read_bytes() == b'tif' and report.read_bytes() == b'{}'
+
+
+# ---- GPU watchdog (Windows only: PowerShell) ------------------------------------
+
+def run_watchdog(tmp_path, fake_smi):
+    (tmp_path / 'nvidia-smi.cmd').write_text('@echo off\r\n' + fake_smi + '\r\n')
+    script = Path(__file__).resolve().parents[1] / 'scripts' / 'gpu_watchdog.ps1'
+    env = dict(os.environ, PATH=str(tmp_path) + os.pathsep + os.environ['PATH'])
+    return subprocess.run(['pwsh', '-NoProfile', '-File', str(script), '-LogPath', str(tmp_path / 'gpu.csv'),
+                           '-Samples', '2', '-IntervalSeconds', '0.2', '-Seconds', '6',
+                           '-ProcessPattern', 'no_process_has_this_name_7f3a'],
+                          env=env, capture_output=True, text=True, timeout=90, check=False)
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='the watchdog is a Windows script')
+@pytest.mark.parametrize('fake_smi', ['exit /b 0', 'exit /b 9', 'echo 50, 1, 1, 1, 1, Not Active\r\nexit /b 9'],
+                         ids=['no-output', 'error-code', 'output-with-error-code'])
+def test_the_watchdog_trips_when_the_sensor_cannot_be_read(tmp_path, fake_smi):
+    done = run_watchdog(tmp_path, fake_smi)
+    assert done.returncode == 2 and 'cannot be read' in done.stdout, done.stdout + done.stderr
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='the watchdog is a Windows script')
+def test_the_watchdog_stays_quiet_for_a_cool_gpu(tmp_path):
+    done = run_watchdog(tmp_path, 'echo 50, 1, 100, 20, 1000, Not Active')
+    assert done.returncode == 0 and 'without a trip' in done.stdout, done.stdout + done.stderr

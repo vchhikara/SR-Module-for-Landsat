@@ -23,7 +23,9 @@ This plugin uses the Real-HAT GAN "sharper" super-resolution model.
            https://www.apache.org/licenses/LICENSE-2.0
 
 Change notice: the file real_hat_64.onnx is a converted form (ONNX export for a
-64 x 64 input tile) of the checkpoint Real_HAT_GAN_sharper.pth.
+64 x 64 input tile) of the HAT weights. The notice of an earlier package names the
+checkpoint Real_HAT_GAN_sharper.pth as its source. No new conversion has
+confirmed this.
 
 The HAT authors do not endorse this plugin. The Apache License applies to their
 work only. The plugin source package does not contain the model. A package that

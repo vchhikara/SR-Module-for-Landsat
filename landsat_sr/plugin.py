@@ -36,6 +36,7 @@ class RunTask(QgsTask):
         self.options, self.on_done = options, on_done
         self.error = ''
         self.debug_traceback = ''
+        self.was_cancelled = False
         self.report = None
 
     def _predictor(self, log_path):
@@ -49,6 +50,7 @@ class RunTask(QgsTask):
             return True
         except Cancelled as exc:
             self.error = str(exc)
+            self.was_cancelled = True
         except SRError as exc:
             self.error = redact(exc)
         except Exception as exc:  # a task must always report, never crash QGIS
@@ -314,7 +316,8 @@ class SuperResolutionPlugin:
     def finished(self, task, success):
         self.tasks.pop(_destination_key(task.options['output']), None)
         if not success:
-            if task.isCanceled():
+            # A real error is always shown, also if the user cancelled while it happened.
+            if task.was_cancelled or (task.isCanceled() and not task.error):
                 # No dialog: QGIS also cancels tasks while it closes.
                 self.iface.messageBar().pushInfo(TITLE, 'Processing was cancelled. No output was written.')
             else:

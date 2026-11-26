@@ -8,6 +8,7 @@ is the commit point. If it fails, the report that this run created is removed.
 import os
 from pathlib import Path
 import shutil
+import sys
 import time
 
 from .constants import SRError
@@ -57,7 +58,10 @@ def _copy_exclusive(source, target):
             out.close()
             os.unlink(target)
             raise
-    os.unlink(source)
+    try:
+        os.unlink(source)
+    except OSError:
+        pass  # the target is complete, and the staging folder is removed afterwards
 
 
 def inherit_permissions(path):
@@ -66,12 +70,15 @@ def inherit_permissions(path):
     The staging folder is private, and a rename keeps the access list of the file. This does
     the same as "icacls /reset": no entries of its own, inheritance on.
     """
+    if sys.platform != 'win32':  # also tells type checkers that the calls below are Windows calls
+        raise OSError('Windows access lists exist only on Windows.')
     import ctypes
     from ctypes import wintypes
     advapi = ctypes.WinDLL('advapi32', use_last_error=True)
     advapi.InitializeAcl.argtypes = [ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD]
     advapi.InitializeAcl.restype = wintypes.BOOL
-    advapi.SetNamedSecurityInfoW.argtypes = [wintypes.LPWSTR, ctypes.c_int, wintypes.DWORD] + 4 * [ctypes.c_void_p]
+    set_argtypes: list = [wintypes.LPWSTR, ctypes.c_int, wintypes.DWORD, *[ctypes.c_void_p] * 4]
+    advapi.SetNamedSecurityInfoW.argtypes = set_argtypes
     advapi.SetNamedSecurityInfoW.restype = wintypes.DWORD
     # An empty list. Never pass no list at all: that would give everyone full access.
     empty = ctypes.create_string_buffer(8)

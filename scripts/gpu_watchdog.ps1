@@ -61,8 +61,13 @@ while ($true) {
     $reason = ''
     $values = ''
     try {
-        $line = (& nvidia-smi "--query-gpu=$query" '--format=csv,noheader,nounits' | Select-Object -First 1)
+        $global:LASTEXITCODE = 0
+        $output = & nvidia-smi "--query-gpu=$query" '--format=csv,noheader,nounits'
+        # A failed native command does not throw. Without these checks, no output would read as 0 C.
+        if ($LASTEXITCODE -ne 0) { throw "nvidia-smi exit code $LASTEXITCODE" }
+        $line = $output | Select-Object -First 1
         $part = $line -split ',\s*'
+        if ($part.Count -lt 6 -or $part[0] -notmatch '^\d+$') { throw 'nvidia-smi gave no reading' }
         $temperature = [int]$part[0]
         $values = $part -join ','
         $unreadable = 0

@@ -253,6 +253,19 @@ the change to QGIS 4.2, also passed: `lint-and-package` 123 passed, 5 skipped; `
 The `qgis` jobs run on Linux containers without ONNX Runtime. They run the fake-worker tests, but not
 the real worker with ONNX Runtime. They include QGIS 3.34, which the plugin no longer declares.
 
+## Review changes after the Windows tests
+
+A later review changed these points on Linux. **None of them ran on Windows with the real model.**
+
+- 16-bit stretch: a few extreme pixels no longer set the range of a tile. The range may pass the 1st and
+  99th percentile by at most the distance between them. Where no pixel lies beyond that limit, the model
+  input is the same as in the Windows tests. Where pixels lie beyond it, the model input differs. What the
+  limit removes is added back to the output without enhancement. This was tested only with test models.
+- Publication without hard links no longer fails if the staging file cannot be deleted.
+- A real error is shown also if the task was cancelled.
+- The GPU watchdog now trips if `nvidia-smi` fails or returns nothing. The Windows CI job tests this with
+  a replacement `nvidia-smi`, not with a GPU.
+
 ## Checked on Linux (2026-11-27, before these changes)
 
 QGIS 4.4.0 (Qt 6), GDAL 3.12.2, Python 3.14, ONNX Runtime on CPU, with a small test model.

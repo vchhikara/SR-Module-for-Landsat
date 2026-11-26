@@ -141,6 +141,31 @@ def test_a_cancelled_task_opens_no_dialog(qgs, plugin, tmp_path):
     assert not (tmp_path / 'out.tif').exists() and not list(tmp_path.glob('.qgis_sr_*'))
 
 
+def test_a_real_error_is_shown_even_if_the_user_also_cancelled(qgs, plugin, tmp_path):
+    """A save error can ask the user to delete a leftover file. A cancel must not hide it."""
+    from landsat_sr import plugin as module
+    from landsat_sr.constants import SRError
+    instance, iface = plugin
+    state = {}
+
+    def fail_after_cancel(task, log_path):
+        def change(batch):
+            state['started'] = True
+            time.sleep(0.4)
+            raise SRError('Publication failed. Delete the incomplete report file: x.json')
+        return FakePredictor(change)
+    with mock.patch.object(module.RunTask, '_predictor', fail_after_cancel), \
+            mock.patch.object(QMessageBox, 'warning') as warning:
+        task = instance.start_task(options(tmp_path))
+        pump(qgs, lambda: state.get('started'))
+        task.cancel()
+        pump(qgs, lambda: not instance.tasks)
+        qgs.processEvents()
+    assert 'Delete the incomplete report file' in warning.call_args[0][2]
+    for call in iface.messageBar().pushInfo.call_args_list:
+        assert 'No output was written' not in call[0][1]
+
+
 def test_a_failure_shows_a_redacted_message(qgs, plugin, tmp_path):
     from landsat_sr import plugin as module
     instance, _ = plugin

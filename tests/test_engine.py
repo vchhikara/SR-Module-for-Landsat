@@ -673,3 +673,39 @@ def test_progress_rises_to_one_hundred(tmp_path):
     engine.run_job(dict(source=small(tmp_path, size=200), output=str(tmp_path / 'out.tif'), bands=[1]),
                    FakePredictor(), progress=seen.append)
     assert seen == sorted(seen) and seen[-1] == 100.0
+
+
+@pytest.mark.parametrize('value,limit', [(20000, 30), (40000, 30), (65535, 30), (1, 30)])
+def test_one_unusual_pixel_does_not_take_the_contrast_from_a_16_bit_tile(tmp_path, value, limit):
+    """A cloud edge, a saturated pixel or a dead pixel must not decide the stretch of the whole tile."""
+    data = RNG.integers(7000, 10000, (3, 64, 64), np.uint16)
+    data[:, 2, 2] = value
+    source = make(tmp_path / 'in.tif', data, gdal.GDT_UInt16)
+    _, out = run(tmp_path, source, FakePredictor(coarse_model))
+    result = pixels(out).astype(np.int32)
+    error = np.abs(result - upscaled(data).astype(np.int32))
+    assert error[:, 32:, 32:].mean() < limit  # land away from the unusual pixel
+    assert error[:, 8:12, 8:12].max() <= 700  # the unusual pixel keeps its own value, not the limit
+
+
+@pytest.mark.parametrize('share', [0.002, 0.008])
+def test_values_outside_the_stretch_are_returned_exactly(tmp_path, share):
+    """With an exact model, every pixel comes back, including the ones beyond the model's input range."""
+    data = RNG.integers(7000, 10000, (3, 150, 190), np.uint16)
+    unusual = RNG.random(data.shape[1:]) < share
+    data[:, unusual] = RNG.integers(20000, 65536, (3, int(unusual.sum())), np.uint16)
+    _, out = run(tmp_path, make(tmp_path / 'in.tif', data, gdal.GDT_UInt16))
+    assert np.abs(pixels(out).astype(np.int32) - upscaled(data).astype(np.int32)).max() <= 1
+
+
+def test_a_tile_without_unusual_pixels_keeps_its_full_range_stretch(tmp_path):
+    """Ordinary tiles must reach the model exactly as they did in the Windows real-model tests."""
+    data = RNG.integers(7000, 10000, (3, 64, 64), np.uint16)
+    image = data.transpose(1, 2, 0).astype(np.float32) / 65535
+    prepared, offset, span = engine._condition(image, np.ones((64, 64), bool), True)[:3]
+    low, high = float(image.min()), float(image.max())
+    floor = max(min(engine._MIN_SPAN, high), 1 / 65535)
+    expected_span = max(high - low, floor)
+    assert span == np.float32(expected_span)
+    assert offset == np.float32(min(max((low + high - expected_span) / 2, 0), 1 - expected_span))
+    assert prepared.min() >= 0 and prepared.max() <= 1
