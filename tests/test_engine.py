@@ -490,6 +490,60 @@ def test_an_unwritable_output_folder_fails_at_once_with_a_message(tmp_path, monk
     assert_nothing_published(tmp_path)
 
 
+def coarse_model(batch):
+    """Like a real model, it has an error of fixed size on its 0..1 scale: it keeps only 64 levels."""
+    return nearest4(np.round(batch * 64) / 64).astype(np.float32)
+
+
+def test_low_contrast_16_bit_data_keeps_its_detail(tmp_path):
+    """Landsat land pixels use a few percent of 0..65535. The model must still see their contrast."""
+    data = RNG.integers(7000, 10000, (3, 100, 130), np.uint16)
+    source = make(tmp_path / 'in.tif', data, gdal.GDT_UInt16)
+    _, out = run(tmp_path, source, FakePredictor(coarse_model))
+    error = np.abs(pixels(out).astype(np.int32) - upscaled(data).astype(np.int32))
+    assert error.mean() < 50  # one level of 64 over 0..65535 is 1024 DN
+
+
+def test_the_model_input_uses_the_contrast_of_each_16_bit_tile(tmp_path):
+    seen = []
+
+    def record(batch):
+        seen.extend((float(tile.min()), float(tile.max())) for tile in batch)
+        return nearest4(batch)
+    data = RNG.integers(7000, 10000, (3, 64, 64), np.uint16)
+    run(tmp_path, make(tmp_path / 'in.tif', data, gdal.GDT_UInt16), FakePredictor(record))
+    low, high = seen[0]
+    assert -1e-6 <= low < 0.3 and 0.7 < high <= 1 + 1e-6
+
+
+def test_a_flat_16_bit_area_is_not_stretched_into_noise(tmp_path):
+    seen = []
+
+    def record(batch):
+        seen.extend(float(np.ptp(tile)) for tile in batch)
+        return nearest4(batch)
+    data = RNG.integers(8000, 8004, (3, 64, 64), np.uint16)
+    _, out = run(tmp_path, make(tmp_path / 'in.tif', data, gdal.GDT_UInt16), FakePredictor(record))
+    assert seen[0] < 0.1
+    np.testing.assert_array_equal(pixels(out), upscaled(data))
+
+
+def test_no_data_pixels_do_not_enter_the_model_as_black(tmp_path):
+    seen = []
+
+    def record(batch):
+        seen.extend(batch.copy())
+        return nearest4(batch)
+    data = RNG.integers(7000, 10000, (3, 64, 64), np.uint16)
+    data[:, :, :20] = 0
+    source = make(tmp_path / 'in.tif', data, gdal.GDT_UInt16,
+                  setup=lambda ds: [ds.GetRasterBand(i).SetNoDataValue(0) for i in (1, 2, 3)])
+    run(tmp_path, source, FakePredictor(record))
+    tile = seen[0]
+    expected = np.broadcast_to(tile[:, 20:].mean(axis=(0, 1)), tile[:, :20].shape)
+    np.testing.assert_allclose(tile[:, :20], expected, atol=1e-3)
+
+
 def test_gdal_configuration_is_restored(tmp_path):
     gdal.SetThreadLocalConfigOption('GDAL_PAM_ENABLED', None)
     run(tmp_path, small(tmp_path))

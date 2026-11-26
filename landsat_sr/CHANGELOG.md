@@ -9,6 +9,10 @@ Privacy and input
 
 Output
 
+- 16-bit input keeps its detail. Real Landsat land values use a few percent of 0 to 65535, and the model
+  returned smeared, shifted-colour images for them. Each tile is now stretched to its own range for the
+  model and mapped back, with a stretch of at most 16 times. Output values stay on the input scale.
+- Pixels without data reach the model as the mean of the tile, not as black.
 - NaN, infinite or far out-of-range model output stops the run.
 - Partial alpha stays partial. Ground control points and RPCs are scaled to the new pixel grid.
 - The TIFF carries its own warning and provenance tags.

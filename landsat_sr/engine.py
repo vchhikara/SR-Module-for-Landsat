@@ -15,6 +15,10 @@ from .constants import (BATCH, MODEL_NAME, MODEL_SHA256, NOTICE, PLUGIN_VERSION,
 
 _STAGING_PREFIX = '.qgis_sr_'
 _LUMA = np.array([0.2126, 0.7152, 0.0722], np.float32)
+# 16-bit imagery often uses a few percent of its range. Each tile is stretched to its own range for
+# the model and mapped back afterwards. A tile is never stretched more than 1 / _MIN_SPAN times,
+# so that flat water or haze is not turned into strong noise.
+_MIN_SPAN = 1.0 / 16
 # A model may overshoot 0..1 a little. A value this far out means broken inference.
 _SANE_LIMIT = 10.0
 
@@ -44,12 +48,30 @@ def _prepare_rows(spec, y, rows, low, high):
     return values.astype(np.float32), coverage
 
 
+def _condition(tile, valid, stretch):
+    """The model input for one tile: (tile - offset) / span. Undo it as result * span + offset.
+
+    Pixels without data get the mean of the valid pixels, so that the model sees no false black edge.
+    """
+    good = tile[valid]
+    offset, span = 0.0, 1.0
+    if stretch:
+        low, high = float(good.min()), float(good.max())
+        span = min(max(high - low, _MIN_SPAN), 1.0)
+        offset = min(max((low + high - span) / 2, 0.0), 1.0 - span)
+    prepared = ((tile - offset) / span).astype(np.float32)
+    prepared[~valid] = (good.mean(axis=0) - offset) / span
+    return np.clip(prepared, 0, 1), np.float32(offset), np.float32(span)
+
+
 def _planes(spec, colour, coverage):
     """Convert blended output rows and input coverage to integer band planes."""
     colour = np.clip(colour, 0, 1)
     if spec.mono:
         colour = (colour @ _LUMA)[..., None]
     pixels = np.clip(colour * spec.type_max, 0, spec.type_max).round().astype(spec.dtype)
+    if spec.has_transparency:  # no colour where the input has no data
+        pixels[np.repeat(np.repeat(coverage <= 0, SCALE, axis=0), SCALE, axis=1)] = 0
     planes = [pixels[..., i] for i in range(pixels.shape[2])]
     if spec.has_transparency:
         alpha = (coverage * spec.type_max).round().astype(spec.dtype)
@@ -76,12 +98,14 @@ def enlarge(spec, low, high, predictor, output, progress, canceled):
             if canceled():
                 raise Cancelled()
             group = wanted[first:first + BATCH]
-            batch = np.stack([tiling.pad_tile(values[:, xs[i]:xs[i] + tile_w]) for i in group])
+            prepared = [_condition(values[:, xs[i]:xs[i] + tile_w], coverage[:, xs[i]:xs[i] + tile_w] > 0,
+                                   spec.type_max > 255) for i in group]
+            batch = np.stack([tiling.pad_tile(item[0]) for item in prepared])
             result = predictor.predict(batch)
             check_prediction(result, len(group))
             predicted += len(group)
-            for i, tile in zip(group, result):
-                part = tile[:tile_h * SCALE, :tile_w * SCALE]
+            for i, tile, (_, offset, span) in zip(group, result, prepared):
+                part = tile[:tile_h * SCALE, :tile_w * SCALE] * span + offset
                 weight = y_weights[row_number][:, None, None] * x_weights[i][None, :, None]
                 left = xs[i] * SCALE
                 top = (y - done_rows) * SCALE
@@ -164,6 +188,7 @@ def run_job(options, predictor_factory, progress=lambda value: None, canceled=la
             'input_mode': 'mono' if spec.mono else 'rgb', 'processed_bands': spec.indexes,
             'auto_range': bool(auto_range), 'minimum': low, 'maximum': high,
             'output_bit_depth': 8 if spec.type_max == 255 else 16,
+            'model_input_scaling': 'per tile' if spec.type_max > 255 else 'display range',
             'georeference': georeference.kind, 'model': MODEL_NAME,
             'model_sha256': metadata['SR_MODEL_SHA256'], 'requested_device': options.get('device', 'auto'),
             'backend': info.get('backend', 'unknown'),
