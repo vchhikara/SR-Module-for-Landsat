@@ -5,7 +5,6 @@ import json
 import os
 from pathlib import Path
 import secrets
-import shutil
 
 import numpy as np
 
@@ -208,4 +207,4 @@ def run_job(options, predictor_factory, progress=lambda value: None, canceled=la
     finally:
         if output is not None:
             output.close()
-        shutil.rmtree(staging_dir, ignore_errors=True)
+        publish.remove_staging(staging_dir)

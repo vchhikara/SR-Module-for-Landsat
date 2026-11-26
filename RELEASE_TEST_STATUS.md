@@ -18,12 +18,12 @@ SHA-256 matches `3f47670dfeba712d68cd479f11cfe25866453c08b840269102b7a037eebc890
 
 | Task | Result |
 |---|---|
-| 1. Test suite | Passed: 194 passed, 11 skipped |
+| 1. Test suite | Passed: 198 passed, 11 skipped |
 | 2. Runtime rule | Passed. The existing runtime is self-contained. The rule was not changed |
 | 3. Smoke scripts | Passed on `cpu`, `auto` and `gpu` |
 | 4. Real model | Passed. It loads from memory |
 | 5. Real scene | Done on crops of a real scene. A full scene was **not** run |
-| 6. File behaviour | Passed, except a nearly full disk and a remote share, which were not checked |
+| 6. File behaviour | Passed, except a nearly full disk and a remote share, which were not checked. A real disk test needs a small volume, which needs administrator rights |
 | 7. Lifecycle | Passed in the QGIS application |
 | 8. Versions | Range narrowed to QGIS 4.2 |
 | 9. Offline builder | Passed with `--internal-test-build`, installed with "Install from ZIP" |
@@ -116,7 +116,20 @@ inference, outside the QGIS application. A scratch script ran them. It is not in
 | Forced read-back failure | Error shown, no files remain |
 | Folder with a deny rule for new files and folders | Error shown, no files remain |
 
-These ran before the 16-bit change. The automated tests ran again after it.
+| Input and output folder reached through a junction | Success, exact pixels |
+
+All cases in this table, with the junction case, ran again on the final engine and publication code.
+
+**Fixed defect: a short file lock lost the whole run.** A program such as a virus scanner can hold a
+new file for a moment. With a staging file held for 1 s, publication failed with `PermissionError`.
+With a 1 s lock during cleanup, the `.qgis_sr_*` folder stayed. The plugin now tries the rename and
+the cleanup again for about 6 s. Tests in `tests/test_publish.py` hold a real file, and they failed
+before the fix. A lasting refusal still fails, publishes nothing and takes about 6 s longer. A lock
+that lasts longer than that still loses the run. No real antivirus product was tested.
+
+**Junctions in the runtime folder.** A junction to files outside the folder is refused. A junction
+loop inside it ended in 0.3 s. A junction to an empty outside folder does not change the fingerprint.
+These were probes with a scratch script.
 
 **Fixed defect: endless task on a read-only folder.** `tempfile.mkdtemp` kept retrying when the folder
 denied new folders. The engine did not return in 90 seconds. It now shows "Cannot write to the output
@@ -179,7 +192,7 @@ QGIS 4.4.0 (Qt 6), GDAL 3.12.2, Python 3.14, ONNX Runtime on CPU, with a small t
 
 - A full-size Landsat scene: time, memory, disk use and visual quality.
 - Visual quality on other scenes, sensors, monochrome 16-bit data and water or snow areas.
-- A nearly full disk, a remote network share, a network failure, junctions and antivirus locks.
+- A nearly full disk, a remote network share, a network failure and real antivirus products.
 - Long paths with `LongPathsEnabled` = 0.
 - Cancel with the button in the QGIS task list. The tests call the same task `cancel` method.
 - The file chooser of "Install from ZIP".

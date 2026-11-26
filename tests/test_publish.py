@@ -1,6 +1,7 @@
 """Publication on its own. No GDAL, so the Windows CI job runs these too."""
 import os
 import subprocess
+import threading
 
 import pytest
 
@@ -53,3 +54,49 @@ def test_a_permission_failure_keeps_the_output_and_is_reported(tmp_path, monkeyp
     dest, report, warnings = published_pair(tmp_path)
     assert dest.is_file() and report.is_file()
     assert warnings == ['out.tif.json', 'out.tif']
+
+
+def hold_open(path, seconds):
+    """Hold a file as a virus scanner can: on Windows, it then cannot be renamed or deleted."""
+    handle = open(path, 'rb')
+    timer = threading.Timer(seconds, handle.close)
+    timer.start()
+    return timer
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows file sharing rules')
+@pytest.mark.parametrize('locked', ['result.tif', 'report.json'])
+def test_a_short_file_lock_does_not_lose_the_result(tmp_path, locked):
+    staging = tmp_path / '.qgis_sr_test'
+    staging.mkdir()
+    (staging / 'result.tif').write_bytes(b'tif')
+    (staging / 'report.json').write_bytes(b'{}')
+    timer = hold_open(staging / locked, 1.0)
+    publish.publish_pair(staging / 'result.tif', staging / 'report.json', tmp_path / 'out.tif')
+    timer.join()
+    assert (tmp_path / 'out.tif').read_bytes() == b'tif' and (tmp_path / 'out.tif.json').is_file()
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows file sharing rules')
+def test_a_short_file_lock_does_not_leave_the_staging_folder(tmp_path):
+    staging = tmp_path / '.qgis_sr_test'
+    staging.mkdir()
+    (staging / 'worker.log').write_bytes(b'log')
+    timer = hold_open(staging / 'worker.log', 1.0)
+    publish.remove_staging(staging)
+    timer.join()
+    assert not staging.exists()
+
+
+def test_a_lasting_refusal_still_fails_and_publishes_nothing(tmp_path, monkeypatch):
+    attempts = []
+
+    def refuse(source, target):
+        attempts.append(target)
+        raise PermissionError(13, 'Access is denied')
+    monkeypatch.setattr(publish, '_move_once', refuse)
+    monkeypatch.setattr(publish, '_RETRY_DELAYS', (0, 0))
+    with pytest.raises(PermissionError):
+        published_pair(tmp_path)
+    assert len(attempts) == 3
+    assert not (tmp_path / 'out.tif').exists() and not (tmp_path / 'out.tif.json').exists()

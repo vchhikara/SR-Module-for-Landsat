@@ -22,6 +22,8 @@ Output
 - Partial alpha stays partial. Ground control points and RPCs are scaled to the new pixel grid.
 - The TIFF carries its own warning and provenance tags.
 - The finished GeoTIFF is flushed, closed, read back and compared before publication.
+- A short file lock, for example from a virus scanner, no longer fails a finished run or leaves the
+  staging folder. The plugin tries again for about 6 seconds.
 - On Windows, the published files get the permissions of the output folder.
 - An output folder without write permission gives a message. On Windows the task could run without end.
 - Publication does not replace existing files. The report is published first and the GeoTIFF last.

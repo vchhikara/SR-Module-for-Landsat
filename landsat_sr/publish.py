@@ -8,12 +8,16 @@ is the commit point. If it fails, the report that this run created is removed.
 import os
 from pathlib import Path
 import shutil
+import time
 
 from .constants import SRError
 
 # GDAL reads these next to a raster. A stale one would change the new output.
 _SIDECAR_SUFFIXES = ('.aux.xml', '.ovr', '.msk')
 _WORLD_SUFFIXES = ('.tfw', '.tifw', '.wld')
+# A virus scanner or indexer can hold a new file for a moment. Windows then refuses to rename or
+# delete it. The plugin waits about 6 seconds in total before it gives up.
+_RETRY_DELAYS = (0.1, 0.2, 0.4, 0.8, 1.6, 3.2)
 
 
 def report_path(dest):
@@ -94,6 +98,25 @@ def _restore_permissions(paths):
 
 def move_no_clobber(source, target):
     """Move source to target. Fail with FileExistsError if target exists."""
+    for delay in _RETRY_DELAYS:
+        try:
+            return _move_once(source, target)
+        except PermissionError:
+            time.sleep(delay)
+    return _move_once(source, target)
+
+
+def remove_staging(folder):
+    """Delete a staging folder. Wait and try again while another program holds one of its files."""
+    for delay in _RETRY_DELAYS:
+        shutil.rmtree(folder, ignore_errors=True)
+        if not os.path.exists(folder):
+            return
+        time.sleep(delay)
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def _move_once(source, target):
     if os.name == 'nt':
         os.rename(source, target)  # Windows refuses an existing target
         return

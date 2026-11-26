@@ -437,7 +437,7 @@ def test_truncated_staging_file_is_refused(tmp_path, monkeypatch):
 def test_a_failed_read_back_releases_the_staging_file(tmp_path, monkeypatch, error):
     """Windows cannot delete an open file, so cleanup must start with no handle into the staging folder."""
     held = []
-    real = engine.shutil.rmtree
+    real = publish.shutil.rmtree
 
     def spy(path, **kwargs):
         for number in os.listdir('/proc/self/fd'):
@@ -451,7 +451,7 @@ def test_a_failed_read_back_releases_the_staging_file(tmp_path, monkeypatch, err
 
     def fail(self, stored):
         raise error('forced')  # a new object each time, as GDAL does
-    monkeypatch.setattr(engine.shutil, 'rmtree', spy)
+    monkeypatch.setattr(publish.shutil, 'rmtree', spy)
     monkeypatch.setattr(raster.Georeference, 'verify', fail)
     with pytest.raises(SRError, match='forced'):
         run(tmp_path, small(tmp_path))
