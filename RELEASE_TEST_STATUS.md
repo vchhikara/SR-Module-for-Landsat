@@ -1,8 +1,15 @@
 # SR Module for Landsat 0.7.0 — release status
 
-Version 0.7.0 is **not released**. The results of earlier versions do not apply to it, because the
-processing code, worker protocol and runtime setup changed. The Windows tests below passed on one
-computer. [Not checked](#not-checked) and [Before release](#before-release) list what remains.
+Version 0.7.0 was **released** on 2026-11-27 as
+[v0.7.0](https://github.com/vchhikara/SR-Module-for-Landsat/releases/tag/v0.7.0). The release holds the
+runtime and model ZIP only. The offline package is not attached. The results of earlier versions do not
+apply to 0.7.0, because the processing code, worker protocol and runtime setup changed. The Windows tests
+below ran on one computer. [Not checked](#not-checked) and [Open items](#open-items) list what remains.
+
+The Git history was rewritten on 2026-11-27. The commit IDs in this file are the new IDs. Tests that ran
+before the rewrite used commits with the same file changes.
+
+Until [Release commit](#release-commit), the sections below describe tests of earlier commits.
 
 ## Test computer and runtime (2026-11-27)
 
@@ -55,7 +62,7 @@ For the four 8-bit cases, the mean block error was 1.08 to 2.50, below the limit
 
 The first four cases did not find the 16-bit defect in task 5. A fifth case, `rgb_uint16`, was added.
 It uses 16-bit values in a narrow range, with a limit of 240 (15 times its value scale). The current
-code gave 40.01 on each device. With the engine of `a42e56e`, the case failed on `gpu` with 527.69.
+code gave 40.01 on each device. With the engine of `b730865`, the case failed on `gpu` with 527.69.
 
 | Device | Start and load | One request (4 tiles), median | Per tile |
 |---|---|---|---|
@@ -102,7 +109,7 @@ added detail is real.
 
 ### Task 5 continued: small windows of different terrain
 
-Twenty windows of 256 x 256 input pixels ran on the DirectML GPU, with the engine of `a42e56e` and with
+Twenty windows of 256 x 256 input pixels ran on the DirectML GPU, with the engine of `b730865` and with
 the fixed engine. Sources: Landsat 9 L2SP path 145 row 39, Landsat 8 path 147 row 41 and path 143 row 41,
 Cartosat-1 PAN (10 bits per pixel) and one 8-bit Sentinel-2 RGB file. All are real imagery.
 
@@ -114,7 +121,7 @@ minimum span is now the largest value. The other 19 windows gave the same number
 The table gives the block error divided by the standard deviation of the input window (lower is better),
 then the correlation:
 
-| Window content | `a42e56e` | Fixed |
+| Window content | `b730865` | Fixed |
 |---|---|---|
 | Snow and ice | 0.08 / 0.994 | 0.07 / 0.996 |
 | Dense forest | 1.26 / 0.373 | 0.20 / 0.979 |
@@ -206,7 +213,7 @@ profile. A script called it, so the file chooser was not used. The plugin became
 from the new profile. The bundled trust record matched the installed runtime. All five smoke cases
 passed on `cpu`, `auto` and `gpu` from this installed copy.
 
-After the last engine change (commit `6cf105c`), the ZIP was built again. It installed into a fresh
+After the last engine change at that time (commit `0fa5325`), the ZIP was built again. It installed into a fresh
 profile in the same way. The three task 7 cases then passed from that installed copy: no worker process
 or staging folder remained, and there was no new QGIS crash dump.
 
@@ -242,20 +249,23 @@ does not start the watchdog.
 
 ## CI
 
-[Run 45880597343](https://github.com/vchhikara/SR-Module-for-Landsat/actions/runs/45880597343) on
-`71096ac` failed, because `tests/test_worker.py` needed GDAL at test collection. After the fix,
-[run 45888243800](https://github.com/vchhikara/SR-Module-for-Landsat/actions/runs/45888243800) on
-`530212f` passed in all five jobs.
-[Run 45895600461](https://github.com/vchhikara/SR-Module-for-Landsat/actions/runs/45895600461), after
-the change to QGIS 4.2, also passed: `lint-and-package` 123 passed, 5 skipped; `windows` 117 passed,
-11 skipped; each `qgis` job 188 passed, 11 skipped. See the Actions page for later commits.
+The first run, on `dad32a6`, failed, because `tests/test_worker.py` needed GDAL at test collection. After
+the fix, the run on `2cde131` passed in all five jobs. A later run, after the change to QGIS 4.2, also
+passed: `lint-and-package` 123 passed, 5 skipped; `windows` 117 passed, 11 skipped; each `qgis` job 188
+passed, 11 skipped.
+
+On the release commit `3c91351`, all five jobs passed in the runs for
+[`main`](https://github.com/vchhikara/SR-Module-for-Landsat/actions/runs/45947419358),
+[`fix/audit-findings`](https://github.com/vchhikara/SR-Module-for-Landsat/actions/runs/45947419360) and
+the [`v0.7.0` tag](https://github.com/vchhikara/SR-Module-for-Landsat/actions/runs/45947441695).
 
 The `qgis` jobs run on Linux containers without ONNX Runtime. They run the fake-worker tests, but not
 the real worker with ONNX Runtime. They include QGIS 3.34, which the plugin no longer declares.
 
 ## Review changes after the Windows tests
 
-A later review changed these points on Linux. **None of them ran on Windows with the real model.**
+A later review changed these points on Linux. [Release commit](#release-commit) gives the Windows tests
+that ran after these changes.
 
 - 16-bit stretch: a few extreme pixels no longer set the range of a tile. The range may pass the 1st and
   99th percentile by at most the distance between them. Where no pixel lies beyond that limit, the model
@@ -265,6 +275,47 @@ A later review changed these points on Linux. **None of them ran on Windows with
 - A real error is shown also if the task was cancelled.
 - The GPU watchdog now trips if `nvidia-smi` fails or returns nothing. The Windows CI job tests this with
   a replacement `nvidia-smi`, not with a GPU.
+
+## Release commit
+
+These tests ran on Windows on 2026-11-27, with the files of commit `3c91351`. At the time of the tests,
+the commit had a different ID. The file tree is identical.
+
+**Test suite:** 212 passed, 13 skipped, with the QGIS Python. The skips are 6 for the shell-script fake
+interpreter, 2 for `/proc`, 1 for POSIX permissions, 2 for symlink rights and 2 for the non-Windows hard
+link fallback. `mypy` did not run on this computer. CI runs it.
+
+**Smoke scripts:** all five cases passed on `cpu`, `auto` and `gpu`, with block errors of 2.17, 1.08,
+2.50, 1.99 and 40.01 on each.
+
+**1024 × 1024 crop:** block error 122 DN overall and 202 DN near NoData, correlation 0.981, 138 s. The
+engine before the review changes gave 125 DN, 204 DN and 0.980 in 137 s. The new stretch limit acted in
+51 of 350 tiles.
+
+**Bright spots:** three 256 × 256 windows with clipped bright pixels had a lower block error than before
+the review changes, both overall and at the clipped pixels. Areas that no affected tile covers were
+identical. **Known visual effect:** in one window, a very bright spot shows visible 4 × 4 blocks in its
+core. The earlier engine was smooth there, but matched the input colour less well. The probable cause is
+that the removed part is added back at input resolution. Only the strongest spot of each window was
+enlarged.
+
+**20 small terrain windows:** 16 outputs were identical to the earlier fixed outputs. The other 4 changed,
+with the same or slightly better block error and correlation. Nobody inspected the new outputs by eye.
+
+**Runtime ZIP:** `landsat_sr_runtime_windows_x64.zip`, 127,879,408 bytes, SHA-256
+`54b502d8ef1d38f5995f534fe86647e0a3b8ca034e2a9d0046c9929917d0f9d8`.
+
+- The rights record passed the builder check. The model hash matched. The 1254 runtime and model files
+  are identical to those in the 0.6.3 download. All 1262 manifest entries matched, also after the tests.
+- In a new QGIS profile, a ZIP of the plugin without runtime or model installed through the "Install
+  from ZIP" page. The configure dialog accepted the extracted runtime. A 160 × 160 real crop then ran
+  through the plugin dialog on `cpu` (21 s) and `auto` (8 s, DirectML). Clicks and typed paths were
+  automated.
+- All five smoke cases passed on `cpu`, `auto` and `gpu` with the extracted runtime.
+- GitHub reported the same size and SHA-256 for the published file. A request without sign-in returned
+  the same size.
+
+The GPU watchdog did not trip. The highest peak in these tests was 79 °C.
 
 ## Checked on Linux (2026-11-27, before these changes)
 
@@ -279,11 +330,15 @@ QGIS 4.4.0 (Qt 6), GDAL 3.12.2, Python 3.14, ONNX Runtime on CPU, with a small t
 - DirectML on other GPUs.
 - QGIS versions other than 4.2.0 on Windows.
 
-## Before release
+## Open items
+
+0.7.0 was released with these items open.
 
 1. Run one full-size scene and inspect it.
 2. Steps 2 and 3 of `docs/release/MODEL_PROVENANCE.md` (conversion script and numeric comparison) are
    open. The owner completed the rights record without them.
+3. Build and test the offline package from the release commit. The offline ZIP described under task 9 was
+   built before the review changes.
 
 ## Owner decisions (2026-11-27)
 
@@ -293,3 +348,5 @@ QGIS 4.4.0 (Qt 6), GDAL 3.12.2, Python 3.14, ONNX Runtime on CPU, with a small t
 - The owner confirmed redistribution of all five runtime and model components, and accepted Apache-2.0
   as the permission for the HAT model. The icon and banner are the owner's work. The HAT credit is in
   `landsat_sr/LICENSE.txt`.
+- The owner stated that they read the DirectML license terms, and decided to publish the runtime ZIP as a
+  separate download. No legal review was done.
