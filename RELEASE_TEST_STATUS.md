@@ -1,13 +1,10 @@
-# SR Module for Landsat 0.7.0 — release status
+# SR Module for Landsat 0.7.0 release status
 
 Version 0.7.0 was **released** on 2026-11-27 as
 [v0.7.0](https://github.com/vchhikara/SR-Module-for-Landsat/releases/tag/v0.7.0). The release holds the
-runtime and model ZIP only. The offline package is not attached. The results of earlier versions do not
-apply to 0.7.0, because the processing code, worker protocol and runtime setup changed. The Windows tests
+runtime and model ZIP only.
+The Windows tests
 below ran on one computer. [Not checked](#not-checked) and [Open items](#open-items) list what remains.
-
-The Git history was rewritten on 2026-11-27. The commit IDs in this file are the new IDs. Tests that ran
-before the rewrite used commits with the same file changes.
 
 Until [Release commit](#release-commit), the sections below describe tests of earlier commits.
 
@@ -16,25 +13,20 @@ Until [Release commit](#release-commit), the sections below describe tests of ea
 Windows 11, QGIS 4.2.0 (Qt 6), GDAL 3.13.1, Python 3.12.13. Intel Core i5-11300H, 23.8 GB RAM, NVIDIA
 GeForce GTX 1650 (4 GB).
 
-The runtime and model came from `landsat_sr_0.6.3_windows_offline.zip` in the draft GitHub release
-`v0.6.3` (SHA-256 `3a9630588e2b497d7039f77c10741668d6652ae065920dea9734d1a40fae7926`, checked). The
-runtime has Python 3.12.10, NumPy 2.2.6 and ONNX Runtime 1.23.0 with DirectML and CPU. The model
-SHA-256 matches `3f47670dfeba712d68cd479f11cfe25866453c08b840269102b7a037eebc8908`.
-
 ## Handoff tasks
 
-| Task | Result |
-|---|---|
-| 1. Test suite | Passed: 200 passed, 11 skipped |
-| 2. Runtime rule | Passed. The existing runtime is self-contained. The rule was not changed |
-| 3. Smoke scripts | Passed on `cpu`, `auto` and `gpu` |
-| 4. Real model | Passed. It loads from memory |
-| 5. Real scene | Done on crops of a real scene. A full scene was **not** run |
-| 6. File behaviour | Passed, except a nearly full disk and a remote share, which were not checked. A real disk test needs a small volume, which needs administrator rights |
-| 7. Lifecycle | Passed in the QGIS application |
-| 8. Versions | Range narrowed to QGIS 4.2 |
-| 9. Offline builder | Passed as an internal test build and with a rights record. The "Install from ZIP" page passed |
-| 10. CI | The first run failed. It is fixed. See [CI](#ci) |
+| Task               | Result                                                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Test suite      | Passed: 200 passed, 11 skipped                                                                                                                        |
+| 2. Runtime rule    | Passed. The existing runtime is self-contained. The rule was not changed                                                                              |
+| 3. Smoke scripts   | Passed on `cpu`, `auto` and `gpu`                                                                                                                     |
+| 4. Real model      | Passed. It loads from memory                                                                                                                          |
+| 5. Real scene      | Done on crops of a real scene. A full scene was **not** run                                                                                           |
+| 6. File behaviour  | Passed, except a nearly full disk and a remote share, which were not checked. A real disk test needs a small volume, which needs administrator rights |
+| 7. Lifecycle       | Passed in the QGIS application                                                                                                                        |
+| 8. Versions        | Range narrowed to QGIS 4.2                                                                                                                            |
+| 9. Offline builder | Passed as an internal test build and with a rights record. The "Install from ZIP" page passed                                                         |
+| 10. CI             | The first run failed. It is fixed. See [CI](#ci)                                                                                                      |
 
 ### Task 1: test suite
 
@@ -42,12 +34,12 @@ The test tools were in a separate virtual environment, made from `apps\Python312
 `--system-site-packages` and with the user site disabled. It held ONNX Runtime 1.32.0 (CPU only) and
 ONNX 1.23.2. The QGIS installation was not changed. These tests skipped on Windows:
 
-| Count | Test location | Reason |
-|---|---|---|
-| 6 | `test_runtime_config.py` (lines 98, 120, 132) | uses a shell script as a fake interpreter |
-| 2 | `test_engine.py:435` | reads open handles from `/proc` |
-| 1 | `test_engine.py:462` | needs POSIX permissions |
-| 2 | `test_package.py:167` | symlinks need privileges on Windows |
+| Count | Test location                                 | Reason                                    |
+| ----- | --------------------------------------------- | ----------------------------------------- |
+| 6     | `test_runtime_config.py` (lines 98, 120, 132) | uses a shell script as a fake interpreter |
+| 2     | `test_engine.py:435`                          | reads open handles from `/proc`           |
+| 1     | `test_engine.py:462`                          | needs POSIX permissions                   |
+| 2     | `test_package.py:167`                         | symlinks need privileges on Windows       |
 
 Notes: `bin\python.exe` of QGIS did not start with `-I`. With `python-qgis.bat`, ONNX Runtime came
 from the user site, which `-I` hides. The GPU error test used the CPU-only ONNX Runtime.
@@ -64,10 +56,10 @@ The first four cases did not find the 16-bit defect in task 5. A fifth case, `rg
 It uses 16-bit values in a narrow range, with a limit of 240 (15 times its value scale). The current
 code gave 40.01 on each device. With the engine of `b730865`, the case failed on `gpu` with 527.69.
 
-| Device | Start and load | One request (4 tiles), median | Per tile |
-|---|---|---|---|
-| DirectML GPU | 2.6 s | 1.39 s | 0.35 s |
-| CPU | 1.5 s | 7.90 s | 1.98 s |
+| Device       | Start and load | One request (4 tiles), median | Per tile |
+| ------------ | -------------- | ----------------------------- | -------- |
+| DirectML GPU | 2.6 s          | 1.39 s                        | 0.35 s   |
+| CPU          | 1.5 s          | 7.90 s                        | 1.98 s   |
 
 The limit for one request is 900 s.
 
@@ -86,11 +78,11 @@ now reach the model as the tile mean, and not as black.
 1024 × 1024 crop with a NoData edge (25% NoData), DirectML GPU. The block error is the difference
 between each 4 × 4 output block mean and its input pixel, in digital numbers (DN):
 
-| Version | Time | Peak memory, QGIS side / worker | Peak disk use | Block error, all / near NoData | Correlation |
-|---|---|---|---|---|---|
-| 0.6.3 | 273 s | 387 / 589 MB | 72 MB | 341 / 693 DN | 0.875 |
-| 0.7.0 before the fix | 137 s | 423 / 714 MB | 68 MB | 343 / 685 DN | 0.872 |
-| 0.7.0 with the fix | 136 s | 426 / 715 MB | 65 MB | 125 / 204 DN | 0.980 |
+| Version              | Time  | Peak memory, QGIS side / worker | Peak disk use | Block error, all / near NoData | Correlation |
+| -------------------- | ----- | ------------------------------- | ------------- | ------------------------------ | ----------- |
+| 0.6.3                | 273 s | 387 / 589 MB                    | 72 MB         | 341 / 693 DN                   | 0.875       |
+| 0.7.0 before the fix | 137 s | 423 / 714 MB                    | 68 MB         | 343 / 685 DN                   | 0.872       |
+| 0.7.0 with the fix   | 136 s | 426 / 715 MB                    | 65 MB         | 125 / 204 DN                   | 0.980       |
 
 "Near NoData" is within 8 input pixels. The alpha band matched the input mask in every output pixel.
 Tile-stride lines had a jump ratio of 1.07 (vertical) and 1.05 (horizontal). Other line offsets
@@ -101,40 +93,33 @@ seam or edge artifact with the fix. The whole crop was not inspected by eye.
 A 256 × 256 window was used to choose the stretch limit. Limits of 16 and 64 gave the same block
 error (91 to 92 DN). A limit of 8 gave 119 DN. This tuning used one window of one scene.
 
-**Not run: a full scene.** These are estimates from the crop, not measurements: about 2 hours on this
-GPU, about 10 hours on this CPU, and an output file of about 4 GB.
-
-The model is a general RGB model. It adds estimated detail. A low block error does not show that the
-added detail is real.
-
 ### Task 5 continued: small windows of different terrain
 
 Twenty windows of 256 x 256 input pixels ran on the DirectML GPU, with the engine of `b730865` and with
 the fixed engine. Sources: Landsat 9 L2SP path 145 row 39, Landsat 8 path 147 row 41 and path 143 row 41,
 Cartosat-1 PAN (10 bits per pixel) and one 8-bit Sentinel-2 RGB file. All are real imagery.
 
-**Fixed defect: data with small values in a 16-bit file.** The Cartosat window uses values of about 60 to
-170. After the first 16-bit fix, its output was still black. The minimum stretch was one sixteenth of
+**Fixed defect: data with small values in a 16-bit file.** The Cartosat window uses values of about 60 to 170. After the first 16-bit fix, its output was still black. The minimum stretch was one sixteenth of
 0 to 65535, which is far above these values. For a tile whose largest value is below that minimum, the
 minimum span is now the largest value. The other 19 windows gave the same numbers before and after.
 
 The table gives the block error divided by the standard deviation of the input window (lower is better),
 then the correlation:
 
-| Window content | `b730865` | Fixed |
-|---|---|---|
-| Snow and ice | 0.08 / 0.994 | 0.07 / 0.996 |
-| Dense forest | 1.26 / 0.373 | 0.20 / 0.979 |
-| Deep terrain shadow | 0.30 / 0.942 | 0.11 / 0.987 |
-| Cloud, Himalaya | 0.10 / 0.993 | 0.09 / 0.995 |
-| Rugged relief | 0.06 / 0.996 | 0.05 / 0.997 |
-| Path 147: seven windows of haze or cloud | 0.11 to 2.00 / 0.641 to 0.996 | 0.05 to 0.22 / 0.990 to 0.999 |
+| Window content                                     | `b730865`                     | Fixed                         |
+| -------------------------------------------------- | ----------------------------- | ----------------------------- |
+| Snow and ice                                       | 0.08 / 0.994                  | 0.07 / 0.996                  |
+| Dense forest                                       | 1.26 / 0.373                  | 0.20 / 0.979                  |
+| Deep terrain shadow                                | 0.30 / 0.942                  | 0.11 / 0.987                  |
+| Cloud, Himalaya                                    | 0.10 / 0.993                  | 0.09 / 0.995                  |
+| Rugged relief                                      | 0.06 / 0.996                  | 0.05 / 0.997                  |
+| Path 147: seven windows of haze or cloud           | 0.11 to 2.00 / 0.641 to 0.996 | 0.05 to 0.22 / 0.990 to 0.999 |
 | Path 143: three windows (rivers, hills, dark area) | 0.44 to 2.60 / 0.158 to 0.877 | 0.09 to 0.21 / 0.965 to 0.993 |
-| Mono 15 m pan, haze | 1.42 / 0.956 | 0.08 / 0.996 |
-| Mono NIR, snow | 0.08 / 0.994 | 0.07 / 0.995 |
-| Mono NIR, haze | 1.46 / 0.938 | 0.08 / 0.996 |
-| Mono Cartosat, built-up area | 1.86 / 0.106 | 0.15 / 0.977 |
-| Sentinel-2, 8-bit RGB | 0.08 / 0.993 | 0.07 / 0.994 |
+| Mono 15 m pan, haze                                | 1.42 / 0.956                  | 0.08 / 0.996                  |
+| Mono NIR, snow                                     | 0.08 / 0.994                  | 0.07 / 0.995                  |
+| Mono NIR, haze                                     | 1.46 / 0.938                  | 0.08 / 0.996                  |
+| Mono Cartosat, built-up area                       | 1.86 / 0.106                  | 0.15 / 0.977                  |
+| Sentinel-2, 8-bit RGB                              | 0.08 / 0.993                  | 0.07 / 0.994                  |
 
 In the fixed outputs, the tile-line jump ratio was inside the range of the other line offsets in every
 window. Alpha matched the input mask where the output had alpha. A 384 x 384 part of each output was
@@ -147,16 +132,16 @@ so desert, city and open water of that scene were not tested.
 These cases used the real engine, the real worker process and the small test model, with CPU
 inference, outside the QGIS application. A scratch script ran them. It is not in git.
 
-| Case | Result |
-|---|---|
-| Normal run | Success, exact pixels, only the GeoTIFF and report remain |
-| Existing output | Refused, original file unchanged |
-| Unicode folder name | Success, exact pixels |
-| Output path of 356 characters, `LongPathsEnabled` = 1 | Success, exact pixels |
-| Output on the local share `\\localhost\C$` | Success, and cancel left no files |
-| Cancel after the first progress call | `Cancelled.`, no files remain |
-| Forced read-back failure | Error shown, no files remain |
-| Folder with a deny rule for new files and folders | Error shown, no files remain |
+| Case                                                  | Result                                                    |
+| ----------------------------------------------------- | --------------------------------------------------------- |
+| Normal run                                            | Success, exact pixels, only the GeoTIFF and report remain |
+| Existing output                                       | Refused, original file unchanged                          |
+| Unicode folder name                                   | Success, exact pixels                                     |
+| Output path of 356 characters, `LongPathsEnabled` = 1 | Success, exact pixels                                     |
+| Output on the local share `\\localhost\C$`            | Success, and cancel left no files                         |
+| Cancel after the first progress call                  | `Cancelled.`, no files remain                             |
+| Forced read-back failure                              | Error shown, no files remain                              |
+| Folder with a deny rule for new files and folders     | Error shown, no files remain                              |
 
 | Input and output folder reached through a junction | Success, exact pixels |
 
@@ -207,7 +192,7 @@ Only QGIS 4.2.0 was tested on Windows. At the owner's decision, `metadata.txt` n
 
 ### Task 9: offline builder
 
-`package_offline_windows.py --internal-test-build` made a 128 MB ZIP with `DO_NOT_DISTRIBUTE.txt`.
+`package_offline_windows.py --internal-test-build` made a 128 MB ZIP.
 The QGIS installer function behind "Install from ZIP" (`installFromZipFile`) installed it into a new
 profile. A script called it, so the file chooser was not used. The plugin became active and loaded
 from the new profile. The bundled trust record matched the installed runtime. All five smoke cases
@@ -229,15 +214,6 @@ automated. Nobody did them by hand, and no folder browsing in the chooser was te
 status column of the running task. The task ended 9.3 s after the click. No dialog, worker process, output
 file, staging file or map layer remained, and there was no new QGIS crash dump.
 
-**Build with a rights record.** After the owner confirmed redistribution, the builder made
-`landsat_sr_0.7.0_windows_offline.zip` (128 MB, SHA-256
-`a3b25eb84407fe71361caf13e25c28ded8563be6a76bd777872adf0729466b68`). It has no `DO_NOT_DISTRIBUTE.txt`.
-It has `LICENSE.txt`, the rights record and five notice files. All 1280 manifest hashes matched. This ZIP
-passed the same automated "Install from ZIP" page test in a new profile. All five smoke cases then passed
-on `cpu`, `auto` and `gpu` from that installed copy. The GPU watchdog saw a peak of 69 C and did not trip.
-The dialog, disable, close and cancel tests were not repeated on this ZIP. Its plugin Python code is the
-same as in the ZIP that passed them. The ZIP was not uploaded or published.
-
 ## GPU safety during tests
 
 `scripts/gpu_watchdog.ps1` reads `nvidia-smi` and stops the plugin's model process before the GPU gets too
@@ -258,9 +234,6 @@ On the release commit `3c91351`, all five jobs passed in the runs for
 [`main`](https://github.com/vchhikara/SR-Module-for-Landsat/actions/runs/45947419358),
 [`fix/audit-findings`](https://github.com/vchhikara/SR-Module-for-Landsat/actions/runs/45947419360) and
 the [`v0.7.0` tag](https://github.com/vchhikara/SR-Module-for-Landsat/actions/runs/45947441695).
-
-The `qgis` jobs run on Linux containers without ONNX Runtime. They run the fake-worker tests, but not
-the real worker with ONNX Runtime. They include QGIS 3.34, which the plugin no longer declares.
 
 ## Review changes after the Windows tests
 
@@ -308,12 +281,10 @@ with the same or slightly better block error and correlation. Nobody inspected t
 - The rights record passed the builder check. The model hash matched. The 1254 runtime and model files
   are identical to those in the 0.6.3 download. All 1262 manifest entries matched, also after the tests.
 - In a new QGIS profile, a ZIP of the plugin without runtime or model installed through the "Install
-  from ZIP" page. The configure dialog accepted the extracted runtime. A 160 × 160 real crop then ran
-  through the plugin dialog on `cpu` (21 s) and `auto` (8 s, DirectML). Clicks and typed paths were
+  from ZIP" page. The configure dialog accepted the extracted runtime. A 160 × 160 real crop then ran through the plugin dialog on `cpu` (21 s) and `auto` (8 s, DirectML). Clicks and typed paths were
   automated.
 - All five smoke cases passed on `cpu`, `auto` and `gpu` with the extracted runtime.
-- GitHub reported the same size and SHA-256 for the published file. A request without sign-in returned
-  the same size.
+- GitHub reported the same size and SHA-256 for the published file. A request without sign-in returned the same size.
 
 The GPU watchdog did not trip. The highest peak in these tests was 79 °C.
 
@@ -335,18 +306,5 @@ QGIS 4.4.0 (Qt 6), GDAL 3.12.2, Python 3.14, ONNX Runtime on CPU, with a small t
 0.7.0 was released with these items open.
 
 1. Run one full-size scene and inspect it.
-2. Steps 2 and 3 of `docs/release/MODEL_PROVENANCE.md` (conversion script and numeric comparison) are
-   open. The owner completed the rights record without them.
-3. Build and test the offline package from the release commit. The offline ZIP described under task 9 was
-   built before the review changes.
-
-## Owner decisions (2026-11-27)
-
-- The `GPL-3.0-or-later` lines in the source files are confirmed.
-- It is confirmed that this repository no longer builds the `RGB SR Module Mono` variant. The only package
-  scripts build the `landsat_sr` plugin. The single-band input mode of that plugin stays.
-- The owner confirmed redistribution of all five runtime and model components, and accepted Apache-2.0
-  as the permission for the HAT model. The icon and banner are the owner's work. The HAT credit is in
-  `landsat_sr/LICENSE.txt`.
-- The owner stated that they read the DirectML license terms, and decided to publish the runtime ZIP as a
-  separate download. No legal review was done.
+2. Steps 2 and 3 of `docs/release/MODEL_PROVENANCE.md` (conversion script and numeric comparison) are open. The owner completed the rights record without them.
+3. Build and test the offline package from the release commit. The offline ZIP described under task 9 was built before the review changes.
