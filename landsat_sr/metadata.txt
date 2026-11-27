@@ -2,8 +2,18 @@
 name=SR Module for Landsat
 qgisMinimumVersion=4.2
 qgisMaximumVersion=4.2
-description=Enlarge RGB and monochrome Landsat images four times for clearer display, offline.
-about=SR Module for Landsat enlarges prepared 8-bit or 16-bit RGB and monochrome rasters by a factor of 4 and saves the result as a GeoTIFF. It uses a general-purpose Real-HAT model through ONNX Runtime. Inference runs on your computer. Input must be a local raster file. Output is for visual display and does not preserve Landsat scientific values. External dependency: the QGIS repository package needs a separately supplied 64-bit Windows runtime (Python 3.11 or later, NumPy, ONNX Runtime) and model. Select them with the runtime setup menu. The plugin does not download them. Author: Vipul Chhikara, New Delhi, India.
+description=Enlarge RGB and monochrome Landsat images four times for clearer display, offline. Windows only.
+about=WINDOWS ONLY. This plugin needs 64-bit Windows and QGIS 4.2 (tested with QGIS 4.2.0). Linux and macOS are not supported.
+ SR Module for Landsat enlarges prepared 8-bit or 16-bit RGB and monochrome rasters by a factor of 4 and saves a GeoTIFF. It uses a general-purpose Real-HAT model through ONNX Runtime. Inference runs on your computer. Input must be a local raster file. Output is for visual display only. The model estimates the added detail. The output is not measured data and not Landsat reflectance.
+ SETUP IS NEEDED BEFORE FIRST USE. The plugin package has no runtime and no model, and the plugin does not download them.
+ 1. Download landsat_sr_runtime_windows_x64.zip (about 128 MB) from https://github.com/vchhikara/SR-Module-for-Landsat/releases/download/v0.7.0/landsat_sr_runtime_windows_x64.zip
+ 2. Check the file. Open PowerShell in the download folder and run the command at the end of this line. The Hash value must be 54b502d8ef1d38f5995f534fe86647e0a3b8ca034e2a9d0046c9929917d0f9d8 (capital and small letters are equal): Get-FileHash .\landsat_sr_runtime_windows_x64.zip
+ 3. Extract the ZIP to a permanent folder that only you can change.
+ 4. In QGIS, open Raster > SR Module for Landsat > Configure SR runtime and model.
+ 5. Select runtime\python.exe and weights\real_hat_64.onnx, then confirm that you trust the runtime.
+ 6. Open SR Module for Landsat from the Raster menu. Select an input raster and a new .tif output path, then select OK.
+ Do not add or change files in the runtime folder. A change blocks processing until you configure the runtime again.
+ The model comes from the HAT project (https://github.com/XPixelGroup/HAT) under the Apache License 2.0. The licenses of the included components are in the licenses folder of the runtime ZIP. Author: Vipul Chhikara, New Delhi, India.
 version=0.7.0
 author=Vipul Chhikara
 email=vipul.chhikara@gmail.com
@@ -15,4 +25,4 @@ icon=icon.png
 tags=landsat,raster,super resolution,upscale,visualization,onnx
 experimental=True
 deprecated=False
-changelog=0.7.0 Keep the detail of 16-bit imagery. Support QGIS 4.2 only. Fix report privacy, alpha, GCP and RPC georeferencing, model output checks, safe publication, runtime trust and tile seams. 0.6.3 Add setup for an external Windows runtime and integrity-checked model. 0.6.2 Mark the plugin as experimental. 0.6.1 Mark the fixed worker command and the public model hash for the site security scan.
+changelog=0.7.0 Keep the detail of 16-bit imagery. Support QGIS 4.2 only. Fix report privacy, alpha, GCP and RPC georeferencing, model output checks, safe publication, runtime trust and tile seams. Add runtime download and setup instructions, Windows only. 0.6.3 Add setup for an external Windows runtime and integrity-checked model. 0.6.2 Mark the plugin as experimental. 0.6.1 Mark the fixed worker command and the public model hash for the site security scan.

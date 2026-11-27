@@ -12,9 +12,32 @@
 <p align="center">
   <img alt="QGIS" src="https://img.shields.io/badge/QGIS-4.2-589632?logo=qgis&logoColor=white">
   <img alt="Python" src="https://img.shields.io/badge/Python-ONNX%20Runtime-3776AB?logo=python&logoColor=white">
-  <img alt="Platform" src="https://img.shields.io/badge/runtime-64--bit%20Windows-0078D4">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Windows%2064--bit%20only-0078D4">
   <a href="LICENSE"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue"></a>
 </p>
+
+## Windows only: download the runtime and set it up
+
+**This plugin works on Windows only.** It needs 64-bit Windows and QGIS 4.2 (tested with QGIS 4.2.0). Linux and macOS are not supported.
+
+Setup is needed before first use. The plugin package has no runtime and no model, and the plugin does not download them.
+
+1. Download [landsat_sr_runtime_windows_x64.zip](https://github.com/vchhikara/SR-Module-for-Landsat/releases/download/v0.7.0/landsat_sr_runtime_windows_x64.zip) (about 128 MB). The file is on the [v0.7.0 release page](https://github.com/vchhikara/SR-Module-for-Landsat/releases/tag/v0.7.0).
+2. In the download folder, check the file in PowerShell:
+
+   ```powershell
+   Get-FileHash .\landsat_sr_runtime_windows_x64.zip
+   ```
+
+   The SHA-256 must be `54b502d8ef1d38f5995f534fe86647e0a3b8ca034e2a9d0046c9929917d0f9d8`. Capital and small letters are equal.
+3. Extract the ZIP to a permanent folder that only you can change.
+4. In QGIS, open **Raster → SR Module for Landsat → Configure SR runtime and model…**.
+5. Select `runtime\python.exe` and `weights\real_hat_64.onnx`, then confirm that you trust the runtime.
+6. Open **SR Module for Landsat** from the Raster menu. Select an input raster and a new `.tif` output path, then select **OK**.
+
+Do not add or change files in the `runtime` folder. A change blocks processing until you configure the runtime again.
+
+---
 
 Landsat pixels are 30 meters wide, so small features look blocky on screen. SR Module for Landsat reads a prepared RGB or single-band raster, adds estimated detail with the Real-HAT model, and writes a GeoTIFF that is four times wider and four times taller. Use it for maps, presentations, and visual inspection.
 
@@ -47,20 +70,20 @@ What you can do:
 ## Requirements
 
 - QGIS 4.2. It was tested on Windows with QGIS 4.2.0. The plugin metadata blocks other versions.
-- 64-bit Windows for the bundled offline runtime.
+- 64-bit Windows only. Linux and macOS are not supported.
 - A prepared unsigned 8-bit or 16-bit raster in a local file. Supported formats are GeoTIFF, ERDAS IMAGINE, ENVI, PNG, JPEG, JPEG 2000, ASCII Grid and BMP. VRT files, web services and database layers are refused. Export them to GeoTIFF first.
 - A runtime with 64-bit Python 3.11 or later. All its code must be inside its own folder.
 - Free disk space for the output. A 4× enlargement has 16 times as many pixels.
 
-The QGIS repository package does not include the inference runtime or model. Obtain a trusted complete Windows x64 runtime package from the maintainer; it contains Python, ONNX Runtime, DirectML and the model. Configure their locations as described below. A separate complete offline plugin package can include them already.
+The plugin package has no runtime and no model, and the plugin does not download them. See [Windows only: download the runtime and set it up](#windows-only-download-the-runtime-and-set-it-up).
 
 ---
 
 ## Getting started
 
-1. Install the plugin from the QGIS Plugin Manager, or get the complete offline plugin package from the project maintainer.
-2. If using a ZIP, open **Plugins → Manage and Install Plugins → Install from ZIP**.
-3. Select the ZIP and install it. If the package does not contain the runtime and model, extract the trusted runtime package to a stable location, then open **Raster → SR Module for Landsat → Configure SR runtime and model…**. Choose `runtime/python.exe` and `weights/real_hat_64.onnx`. The model is checked against its expected SHA-256. Before any runtime code runs, the plugin asks you to trust it. The plugin cannot check who made a runtime, so use only a source that you trust. It records every runtime file and blocks processing if one changes. This setup does not install packages into QGIS Python.
+1. Install the plugin from the QGIS Plugin Manager.
+2. To install from a plugin ZIP instead, open **Plugins → Manage and Install Plugins → Install from ZIP**. Select the ZIP and install it.
+3. Do the steps in [Windows only: download the runtime and set it up](#windows-only-download-the-runtime-and-set-it-up). The model is checked against its expected SHA-256. Before any runtime code runs, the plugin asks you to trust it. The plugin cannot check who made a runtime, so use only a source that you trust. It records every runtime file and blocks processing if one changes. This setup does not install packages into QGIS Python.
 
 ---
 
@@ -97,7 +120,7 @@ With **Add output to QGIS** selected, the plugin adds the result to the project 
 
 | Message | What to do |
 |---|---|
-| SR setup is needed | Obtain the runtime package from the maintainer and select `runtime/python.exe` and `weights/real_hat_64.onnx` in **Configure SR runtime and model…**. |
+| SR setup is needed | [Download the runtime ZIP](#windows-only-download-the-runtime-and-set-it-up). Then select `runtime/python.exe` and `weights/real_hat_64.onnx` in **Configure SR runtime and model…**. |
 | The runtime files changed | Find out why they changed. Then configure the runtime again. |
 | Only local raster files are accepted | Export the layer to a local GeoTIFF. |
 | The model worker gave no answer | Try the **cpu** device. Check the message for the worker log. |

@@ -2,6 +2,8 @@
 
 ## 0.7.0
 
+- Runtime download and setup instructions added. The plugin works on Windows only.
+
 Credits
 
 - `LICENSE.txt` records the copyright of the plugin and its images, and credits the HAT authors.
